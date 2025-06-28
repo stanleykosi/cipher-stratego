@@ -1,6 +1,7 @@
 [package]
-name = "encrypted-ixs"
+name = "check-shot-circuit"
 version = "0.1.0"
+description = "Arcis circuit for Cipher Stratego's check_shot instruction."
 edition = "2021"
 
 [dependencies]
