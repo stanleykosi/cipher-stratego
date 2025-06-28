@@ -1,0 +1,21 @@
+{
+  "name": "cipher-stratego",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A web application demonstrating on-chain, hidden information games using Arcium.",
+  "author": "AI Code Generator",
+  "license": "MIT",
+  "workspaces": [
+    "packages/program",
+    "packages/ui"
+  ],
+  "scripts": {
+    "program:build": "npm -w packages/program run build",
+    "program:test": "npm -w packages/program run test",
+    "ui:dev": "npm -w packages/ui run dev",
+    "ui:build": "npm -w packages/ui run build"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
