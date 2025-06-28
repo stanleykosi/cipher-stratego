@@ -17,11 +17,18 @@
  *   wrapper for programs that interact with the Arcium network.
  */
  use anchor_lang::prelude::*;
+ use arcium_anchor::ComputationOutputs;
  use arcium_macros::arcium_program;
  
  // This is a placeholder Program ID. It will be replaced with the actual
  // program ID when the program is deployed.
  declare_id!("5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK");
+ 
+ // Constants for the Arcis computation definition offsets.
+ // These are used to uniquely identify our confidential instructions.
+ // TODO: Re-enable when Arcium circuits are built
+ // const COMP_DEF_OFFSET_CHECK_SHOT: u32 = comp_def_offset("check_shot");
+ // const COMP_DEF_OFFSET_REVEAL_BOARDS: u32 = comp_def_offset("reveal_boards");
  
  /**
   * @description
@@ -32,113 +39,233 @@
  #[arcium_program]
  pub mod cipher_stratego {
      use super::*;
-     // Instruction implementations will be added in subsequent steps.
+ 
+     // ========================================
+     // Instruction Stubs
+     // ========================================
+ 
+          pub fn initialize_game(_ctx: Context<InitializeGame>, _game_seed: u64) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+
+     pub fn join_game(_ctx: Context<JoinGame>) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+
+     pub fn submit_board(
+         _ctx: Context<SubmitBoard>,
+         _board_rows: [[u8; 32]; 8],
+         _public_key: [u8; 32],
+         _nonce: [u8; 16],
+     ) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+
+     pub fn fire_shot(_ctx: Context<FireShot>, _computation_offset: u64, _x: u8, _y: u8) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+ 
+     pub fn fire_shot_callback(
+         _ctx: Context<FireShotCallback>,
+         _output: ComputationOutputs,
+     ) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+ 
+     pub fn forfeit(_ctx: Context<ForfeitGame>) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+     
+     // --- Reveal Boards Flow ---
+ 
+          pub fn reveal_boards(
+         _ctx: Context<RevealBoards>,
+         _computation_offset: u64,
+         _p1_ciphertext: Vec<u8>,
+         _p1_pubkey: [u8; 32],
+         _p1_nonce: [u8; 16],
+         _p2_ciphertext: Vec<u8>,
+         _p2_pubkey: [u8; 32],
+         _p2_nonce: [u8; 16],
+     ) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+
+     pub fn reveal_boards_callback(
+         _ctx: Context<RevealBoardsCallback>,
+         _output: ComputationOutputs,
+     ) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+ 
+     // --- Arcium Comp Def Initializers ---
+     
+     pub fn init_comp_def_check_shot(_ctx: Context<InitCheckShotCompDef>) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
+     
+     pub fn init_comp_def_reveal_boards(_ctx: Context<InitRevealBoardsCompDef>) -> Result<()> {
+         // TODO: Implement logic in a future step.
+         Ok(())
+     }
  }
+ 
+ // ========================================
+ // Account Context Structs
+ // ========================================
+ 
+ #[derive(Accounts)]
+ #[instruction(game_seed: u64)]
+ pub struct InitializeGame<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     #[account(
+         init,
+         payer = payer,
+         space = 8 + std::mem::size_of::<Game>(),
+         seeds = [b"game", game_seed.to_le_bytes().as_ref()],
+         bump
+     )]
+     pub game: Account<'info, Game>,
+     pub system_program: Program<'info, System>,
+ }
+ 
+ #[derive(Accounts)]
+ pub struct JoinGame<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
+     pub game: Account<'info, Game>,
+ }
+ 
+ #[derive(Accounts)]
+ pub struct SubmitBoard<'info> {
+     pub player: Signer<'info>,
+     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
+     pub game: Account<'info, Game>,
+ }
+ 
+  #[derive(Accounts)]
+ #[instruction(computation_offset: u64)]
+ pub struct FireShot<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
+     pub game: Account<'info, Game>,
+     pub system_program: Program<'info, System>,
+ }
+
+ #[derive(Accounts)]
+ pub struct FireShotCallback<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     #[account(mut)]
+     pub game: Account<'info, Game>,
+ }
+ 
+ #[derive(Accounts)]
+ pub struct ForfeitGame<'info> {
+     pub player: Signer<'info>,
+     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
+     pub game: Account<'info, Game>,
+ }
+ 
+  #[derive(Accounts)]
+ #[instruction(computation_offset: u64)]
+ pub struct RevealBoards<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     #[account(seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
+     pub game: Account<'info, Game>,
+     pub system_program: Program<'info, System>,
+ }
+
+ #[derive(Accounts)]
+ pub struct RevealBoardsCallback<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+ }
+
+ #[derive(Accounts)]
+ pub struct InitCheckShotCompDef<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     pub system_program: Program<'info, System>,
+ }
+
+ #[derive(Accounts)]
+ pub struct InitRevealBoardsCompDef<'info> {
+     #[account(mut)]
+     pub payer: Signer<'info>,
+     pub system_program: Program<'info, System>,
+ }
+ 
+ // ========================================
+ // On-Chain State Structs & Events
+ // ========================================
  
  /**
   * @description
   * The core on-chain account for a single game of Cipher Stratego.
-  * It is a Program-Derived Account (PDA) and stores all state related to a game instance,
-  * including player information, encrypted board states, and game progress.
-  *
-  * @fields
-  * - `players`: An array holding the public keys of the two players.
-  * - `turn_number`: A counter to track game progression. Even turns for P1, odd for P2.
-  * - `board_states`: A 3D array storing the encrypted board layouts for both players.
-  *   Each 8-square row is individually encrypted into a 32-byte ciphertext.
-  *   The structure is `[player_index][row_index][ciphertext]`.
-  * - `nonces`: The nonces used for the client-side encryption of each player's board.
-  *   Crucial for decryption during the reveal phase.
-  * - `public_keys`: The ephemeral public keys generated by each client for the
-  *   Diffie-Hellman key exchange, used to create the shared secret for encryption.
-  * - `game_log`: A public log of all shots fired during the game. It is a fixed-size
-  *   array, with a maximum of 64 shots (for an 8x8 grid).
-  * - `log_idx`: The current index/count of shots in `game_log`, used to append new shots.
-  * - `game_state`: An enum representing the current state of the game (e.g., waiting, active, finished).
-  * - `game_seed`: A random number provided on game creation to seed the PDA, allowing for
-  *   the creation of multiple games by the same player.
   */
  #[account]
  pub struct Game {
-     /// Player 1 and Player 2 public keys.
      pub players: [Pubkey; 2],
-     /// Tracks current turn. Even for P1, odd for P2.
      pub turn_number: u64,
-     /// [player_index][row_index][ciphertext]
-     /// Each row of the 8x8 board is encrypted into a 32-byte ciphertext.
      pub board_states: [[[u8; 32]; 8]; 2],
-     /// Nonces used for each player's board encryption.
      pub nonces: [[u8; 16]; 2],
-     /// Ephemeral public keys from each client for encryption.
      pub public_keys: [[u8; 32]; 2],
-     /// Public log of all shots fired. Max 64 shots for an 8x8 grid.
      pub game_log: [Shot; 64],
-     /// The current index/count of shots in game_log.
      pub log_idx: u8,
-     /// Current state of the game.
      pub game_state: GameState,
-     /// Seed used to derive this PDA, for easy lookup.
      pub game_seed: u64,
  }
  
- /**
-  * @description
-  * Represents a single shot event in the game's public log.
-  * This struct is stored in the `game_log` array within the `Game` account.
-  *
-  * @fields
-  * - `player`: The public key of the player who fired the shot.
-  * - `coord`: The (x, y) coordinate that was targeted.
-  * - `result`: The outcome of the shot, either a Hit or a Miss.
-  */
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
  pub struct Shot {
-     /// The player who fired the shot.
      pub player: Pubkey,
-     /// The (x, y) coordinate targeted.
      pub coord: (u8, u8),
-     /// The outcome of the shot.
      pub result: HitOrMiss,
  }
  
- /**
-  * @description
-  * An enum representing the result of a single shot.
-  * This is used within the `Shot` struct.
-  */
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
  pub enum HitOrMiss {
+     #[default]
      Miss,
      Hit,
  }
  
- /**
-  * @description
-  * An enum for the high-level state of the game.
-  * It governs which actions are permissible at any given time.
-  */
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
  pub enum GameState {
-     /// Game created, waiting for the second player to join.
+     #[default]
      AwaitingPlayer,
-     /// It is Player 1's turn to act.
      P1Turn,
-     /// It is Player 2's turn to act.
      P2Turn,
-     /// Player 1 has won the game.
      P1Won,
-     /// Player 2 has won the game.
      P2Won,
-     /// The game has ended in a draw (e.g., all squares fired upon with no winner).
      Draw,
  }
  
- /**
-  * @description
-  * Defines the set of custom error codes for the Cipher Stratego program.
-  * These provide specific, user-friendly error messages on the client-side
-  * for failed transactions.
-  */
+ #[event]
+ pub struct BoardRevealEvent {
+     pub p1_board: [[u8; 8]; 8],
+     pub p2_board: [[u8; 8]; 8],
+ }
+ 
+ 
+ // ========================================
+ // Custom Error Codes
+ // ========================================
+ 
  #[error_code]
  pub enum GameError {
      #[msg("This game is already full.")]

@@ -1,5 +1,5 @@
 [package]
-name = "check-shot-circuit"
+name = "encrypted-ixs"
 version = "0.1.0"
 description = "Arcis circuit for Cipher Stratego's check_shot instruction."
 edition = "2021"

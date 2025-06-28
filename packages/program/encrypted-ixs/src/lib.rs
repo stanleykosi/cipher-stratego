@@ -1,13 +1,13 @@
 /**
  * @description
- * This file defines the confidential Arcis circuit for the Cipher Stratego game.
- * The primary purpose of this circuit is to confidentially determine if a player's
- * shot is a "hit" or a "miss" without revealing the opponent's entire board layout
- * to the Arcium nodes or the public.
+ * This file defines the confidential Arcis circuits for the Cipher Stratego game.
+ * The circuits defined here are executed by the Arcium network to perform
+ * computations on encrypted data without revealing the underlying secrets.
  *
  * @scope
- * - Defines the `check_shot` confidential instruction.
- * - Specifies the data structures for encrypted inputs.
+ * - Defines the `check_shot` confidential instruction for hit/miss detection.
+ * - Defines the `reveal_boards` confidential instruction for end-of-game verification.
+ * - Specifies the data structures for encrypted inputs and public outputs.
  *
  * @dependencies
  * - `arcis_imports`: Provides all necessary types, macros, and functions for
@@ -17,7 +17,6 @@
  * @notes
  * The logic here must be "data-independent," meaning the execution flow cannot
  * depend on secret values. Arcis handles this for operations like array indexing,
-
  * but developers must avoid constructs like `if (secret_value) { return; }`.
  */
  use arcis_imports::*;
@@ -28,19 +27,19 @@
   * confidential instructions that will be compiled into MPC circuits for execution
   * on the Arcium network.
   */
- #[encrypted]
+  #[encrypted]
  mod circuits {
      use arcis_imports::*;
+
+     //================================================================
+     // CHECK SHOT CIRCUIT
+     //================================================================
  
      /**
       * @description
       * A struct to represent a single row of the game board.
       * This is the data structure that will be encrypted on the client-side and
       * passed into the `check_shot` confidential instruction.
-      *
-      * @fields
-      * - `row`: A fixed-size array of 8 `u8` values, where `1` represents a
-      *   ship part and `0` represents water.
       */
      pub struct BoardRow {
          pub row: [u8; 8],
@@ -48,7 +47,7 @@
  
      /**
       * @description
-      * The core confidential instruction for the game. It takes an encrypted
+      * The core confidential instruction for the gameplay loop. It takes an encrypted
       * board row and a public coordinate, confidentially looks up the value
       * at that coordinate, and returns a public result indicating a hit or miss.
       *
@@ -83,5 +82,54 @@
          // that makes the computed result (hit or miss) visible outside the
          // confidential execution environment.
          cell_value.reveal()
+     }
+ 
+     //================================================================
+     // REVEAL BOARDS CIRCUIT
+     //================================================================
+ 
+     /**
+      * @description
+      * A struct to represent a complete 8x8 game board.
+      * Used by the `reveal_boards` instruction.
+      */
+     pub struct FullBoard {
+         pub board: [[u8; 8]; 8],
+     }
+ 
+     /**
+      * @description
+      * A struct to hold the publicly revealed boards of both players.
+      * This is the return type for the `reveal_boards` instruction.
+      */
+     pub struct RevealedBoards {
+         pub p1_board: [[u8; 8]; 8],
+         pub p2_board: [[u8; 8]; 8],
+     }
+ 
+     /**
+      * @description
+      * A confidential instruction for the end of the game. It takes two encrypted
+      * full boards, decrypts them, and reveals them publicly for verification.
+      *
+      * @inputs
+      * - `p1_board_ctxt: Enc<Shared, FullBoard>`: Player 1's encrypted board.
+      * - `p2_board_ctxt: Enc<Shared, FullBoard>`: Player 2's encrypted board.
+      *
+      * @returns
+      * - `RevealedBoards`: A struct containing both players' decrypted boards.
+      */
+     #[instruction]
+     pub fn reveal_boards(
+         p1_board_ctxt: Enc<Shared, FullBoard>,
+         p2_board_ctxt: Enc<Shared, FullBoard>,
+     ) -> RevealedBoards {
+         let p1_board_secret = p1_board_ctxt.to_arcis();
+         let p2_board_secret = p2_board_ctxt.to_arcis();
+ 
+         RevealedBoards {
+             p1_board: p1_board_secret.board.reveal(),
+             p2_board: p2_board_secret.board.reveal(),
+         }
      }
  }
