@@ -1,41 +1,34 @@
 /**
  * @description
  * This is the root layout for the Next.js application. It sets up the basic HTML
- * structure, including fonts and global styles.
+ * structure, including fonts, global styles, and the main application shell.
  *
- * I have modified this file to wrap the application's content with the
- * `WalletContextProvider`. This makes all the Solana wallet hooks and context
- * available to every component in the application, enabling seamless wallet
- * interactions.
- *
- * Key features:
- * - Imports the Geist font for typography.
- * - Imports global CSS for application-wide styling.
- * - Wraps the `<body>` content with the `WalletContextProvider` component.
+ * I have modified this file to:
+ * 1. Import and render the new `Header` component.
+ * 2. Structure the `body` with a flex column layout to create a sticky header
+ *    and a main content area that fills the remaining space.
+ * 3. Wrap the application's content with the `WalletContextProvider` to make
+ *    Solana wallet context available to all components.
  *
  * @dependencies
  * - `next/font`: For font optimization.
  * - `./globals.css`: For global styles.
- * - `./providers`: The newly created component that houses all wallet-related context providers.
+ * - `./providers`: The component that houses all wallet-related context providers.
+ * - `@/app/_components/header`: The newly created header component.
  *
  * @notes
- * By encapsulating providers in a separate `providers.tsx` file, this `layout.tsx`
- * can remain a Server Component, which is a Next.js App Router best practice.
+ * By encapsulating providers in `providers.tsx` and the header in its own component,
+ * this `layout.tsx` remains a Server Component, which is a Next.js App Router best practice.
  */
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { WalletContextProvider } from "./providers";
+import { Header } from "@/app/_components/header";
+import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = GeistSans;
+const geistMono = GeistMono;
 
 export const metadata: Metadata = {
   title: "Cipher Stratego",
@@ -50,9 +43,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <WalletContextProvider>{children}</WalletContextProvider>
+        <WalletContextProvider>
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+          </div>
+        </WalletContextProvider>
       </body>
     </html>
   );
