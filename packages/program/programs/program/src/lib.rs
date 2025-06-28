@@ -1,181 +1,158 @@
-use anchor_lang::prelude::*;
-use arcium_anchor::{
-    comp_def_offset,
-    derive_cluster_pda,
-    derive_comp_def_pda,
-    derive_comp_pda,
-    derive_execpool_pda,
-    derive_mempool_pda,
-    derive_mxe_pda,
-    init_comp_def,
-    queue_computation,
-    ComputationOutputs,
-    ARCIUM_CLOCK_ACCOUNT_ADDRESS,
-    ARCIUM_STAKING_POOL_ACCOUNT_ADDRESS,
-    CLUSTER_PDA_SEED,
-    COMP_PDA_SEED,
-    COMP_DEF_PDA_SEED,
-    EXECPOOL_PDA_SEED,
-    MEMPOOL_PDA_SEED,
-    MXE_PDA_SEED,
-};
-use arcium_client::idl::arcium::{
-    accounts::{
-        ClockAccount, Cluster, ComputationDefinitionAccount, PersistentMXEAccount, StakingPoolAccount
-    },
-    program::Arcium,
-    types::Argument,
-    ID_CONST as ARCIUM_PROG_ID,
-};
-use arcium_macros::{
-    arcium_callback,
-    arcium_program,
-    callback_accounts,
-    init_computation_definition_accounts,
-    queue_computation_accounts,
-};
-
-const COMP_DEF_OFFSET_ADD_TOGETHER: u32 = comp_def_offset("add_together");
-
-declare_id!("5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK");
-
-#[arcium_program]
-pub mod program {
-    use super::*;
-
-    pub fn init_add_together_comp_def(ctx: Context<InitAddTogetherCompDef>) -> Result<()> {
-        init_comp_def(ctx.accounts, true, None, None)?;
-        Ok(())
-    }
-
-    pub fn add_together(
-        ctx: Context<AddTogether>,
-        computation_offset: u64,
-        ciphertext_0: [u8; 32],
-        ciphertext_1: [u8; 32],
-        pub_key: [u8; 32],
-        nonce: u128,
-    ) -> Result<()> {
-        let args = vec![
-            Argument::ArcisPubkey(pub_key),
-            Argument::PlaintextU128(nonce),
-            Argument::EncryptedU8(ciphertext_0),
-            Argument::EncryptedU8(ciphertext_1),
-        ];
-        queue_computation(ctx.accounts, computation_offset, args, vec![], None)?;
-        Ok(())
-    }
-
-    #[arcium_callback(encrypted_ix = "add_together")]
-    pub fn add_together_callback(
-        ctx: Context<AddTogetherCallback>,
-        output: ComputationOutputs,
-    ) -> Result<()> {
-        let bytes = if let ComputationOutputs::Bytes(bytes) = output {
-            bytes
-        } else {
-            return Err(ErrorCode::AbortedComputation.into());
-        };
-
-        emit!(SumEvent {
-            sum: bytes[48..80].try_into().unwrap(),
-            nonce: bytes[32..48].try_into().unwrap(),
-        });
-        Ok(())
-    }
-}
-
-#[queue_computation_accounts("add_together", payer)]
-#[derive(Accounts)]
-#[instruction(computation_offset: u64)]
-pub struct AddTogether<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
-    pub mxe_account: Account<'info, PersistentMXEAccount>,
-    #[account(
-        mut,
-        address = derive_mempool_pda!()
-    )]
-    /// CHECK: mempool_account, checked by the arcium program.
-    pub mempool_account: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_execpool_pda!()
-    )]
-    /// CHECK: executing_pool, checked by the arcium program.
-    pub executing_pool: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_comp_pda!(computation_offset)
-    )]
-    /// CHECK: computation_account, checked by the arcium program.
-    pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_ADD_TOGETHER)
-    )]
-    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        mut,
-        address = derive_cluster_pda!(mxe_account)
-    )]
-    pub cluster_account: Account<'info, Cluster>,
-    #[account(
-        mut,
-        address = ARCIUM_STAKING_POOL_ACCOUNT_ADDRESS,
-    )]
-    pub pool_account: Account<'info, StakingPoolAccount>,
-    #[account(
-        address = ARCIUM_CLOCK_ACCOUNT_ADDRESS
-    )]
-    pub clock_account: Account<'info, ClockAccount>,
-    pub system_program: Program<'info, System>,
-    pub arcium_program: Program<'info, Arcium>,
-}
-
-#[callback_accounts("add_together", payer)]
-#[derive(Accounts)]
-pub struct AddTogetherCallback<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub arcium_program: Program<'info, Arcium>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_ADD_TOGETHER)
-    )]
-    pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
-    /// CHECK: instructions_sysvar, checked by the account constraint
-    pub instructions_sysvar: AccountInfo<'info>,
-}
-
-#[init_computation_definition_accounts("add_together", payer)]
-#[derive(Accounts)]
-pub struct InitAddTogetherCompDef<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    #[account(
-        mut,
-        address = derive_mxe_pda!()
-    )]
-    pub mxe_account: Box<Account<'info, PersistentMXEAccount>>,
-    #[account(mut)]
-    /// CHECK: comp_def_account, checked by arcium program.
-    /// Can't check it here as it's not initialized yet.
-    pub comp_def_account: UncheckedAccount<'info>,
-    pub arcium_program: Program<'info, Arcium>,
-    pub system_program: Program<'info, System>,
-}
-
-#[event]
-pub struct SumEvent {
-    pub sum: [u8; 32],
-    pub nonce: [u8; 16],
-}
-
-#[error_code]
-pub enum ErrorCode {
-    #[msg("The computation was aborted")]
-    AbortedComputation,
-}
+/**
+ * @description
+ * This file is the main entry point for the Cipher Stratego Solana program.
+ * It defines the on-chain state, instructions, and error handling for the game.
+ * The program is built using the Anchor framework with the Arcium wrapper, enabling
+ * both standard on-chain logic and confidential computations via Arcis circuits.
+ *
+ * @scope
+ * - Defines the `Game` account PDA, which holds the entire state for a single game.
+ * - Defines helper data structures like `Shot`, `HitOrMiss`, and `GameState`.
+ * - Defines custom program errors for robust validation and client-side feedback.
+ * - Declares the main program module `cipher_stratego` where all instructions will be implemented.
+ *
+ * @dependencies
+ * - `anchor_lang`: The core Anchor framework for Solana program development.
+ * - `arcium_macros`: Provides the `#[arcium_program]` macro, which is a required
+ *   wrapper for programs that interact with the Arcium network.
+ */
+ use anchor_lang::prelude::*;
+ use arcium_macros::arcium_program;
+ 
+ // This is a placeholder Program ID. It will be replaced with the actual
+ // program ID when the program is deployed.
+ declare_id!("5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK");
+ 
+ /**
+  * @description
+  * The main module for the Cipher Stratego program, decorated with `#[arcium_program]`.
+  * This macro replaces Anchor's `#[program]` and is necessary for integrating
+  * with the Arcium network. All game logic instructions will be defined within this module.
+  */
+ #[arcium_program]
+ pub mod cipher_stratego {
+     use super::*;
+     // Instruction implementations will be added in subsequent steps.
+ }
+ 
+ /**
+  * @description
+  * The core on-chain account for a single game of Cipher Stratego.
+  * It is a Program-Derived Account (PDA) and stores all state related to a game instance,
+  * including player information, encrypted board states, and game progress.
+  *
+  * @fields
+  * - `players`: An array holding the public keys of the two players.
+  * - `turn_number`: A counter to track game progression. Even turns for P1, odd for P2.
+  * - `board_states`: A 3D array storing the encrypted board layouts for both players.
+  *   Each 8-square row is individually encrypted into a 32-byte ciphertext.
+  *   The structure is `[player_index][row_index][ciphertext]`.
+  * - `nonces`: The nonces used for the client-side encryption of each player's board.
+  *   Crucial for decryption during the reveal phase.
+  * - `public_keys`: The ephemeral public keys generated by each client for the
+  *   Diffie-Hellman key exchange, used to create the shared secret for encryption.
+  * - `game_log`: A public log of all shots fired during the game. It is a fixed-size
+  *   array, with a maximum of 64 shots (for an 8x8 grid).
+  * - `log_idx`: The current index/count of shots in `game_log`, used to append new shots.
+  * - `game_state`: An enum representing the current state of the game (e.g., waiting, active, finished).
+  * - `game_seed`: A random number provided on game creation to seed the PDA, allowing for
+  *   the creation of multiple games by the same player.
+  */
+ #[account]
+ pub struct Game {
+     /// Player 1 and Player 2 public keys.
+     pub players: [Pubkey; 2],
+     /// Tracks current turn. Even for P1, odd for P2.
+     pub turn_number: u64,
+     /// [player_index][row_index][ciphertext]
+     /// Each row of the 8x8 board is encrypted into a 32-byte ciphertext.
+     pub board_states: [[[u8; 32]; 8]; 2],
+     /// Nonces used for each player's board encryption.
+     pub nonces: [[u8; 16]; 2],
+     /// Ephemeral public keys from each client for encryption.
+     pub public_keys: [[u8; 32]; 2],
+     /// Public log of all shots fired. Max 64 shots for an 8x8 grid.
+     pub game_log: [Shot; 64],
+     /// The current index/count of shots in game_log.
+     pub log_idx: u8,
+     /// Current state of the game.
+     pub game_state: GameState,
+     /// Seed used to derive this PDA, for easy lookup.
+     pub game_seed: u64,
+ }
+ 
+ /**
+  * @description
+  * Represents a single shot event in the game's public log.
+  * This struct is stored in the `game_log` array within the `Game` account.
+  *
+  * @fields
+  * - `player`: The public key of the player who fired the shot.
+  * - `coord`: The (x, y) coordinate that was targeted.
+  * - `result`: The outcome of the shot, either a Hit or a Miss.
+  */
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+ pub struct Shot {
+     /// The player who fired the shot.
+     pub player: Pubkey,
+     /// The (x, y) coordinate targeted.
+     pub coord: (u8, u8),
+     /// The outcome of the shot.
+     pub result: HitOrMiss,
+ }
+ 
+ /**
+  * @description
+  * An enum representing the result of a single shot.
+  * This is used within the `Shot` struct.
+  */
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+ pub enum HitOrMiss {
+     Miss,
+     Hit,
+ }
+ 
+ /**
+  * @description
+  * An enum for the high-level state of the game.
+  * It governs which actions are permissible at any given time.
+  */
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]
+ pub enum GameState {
+     /// Game created, waiting for the second player to join.
+     AwaitingPlayer,
+     /// It is Player 1's turn to act.
+     P1Turn,
+     /// It is Player 2's turn to act.
+     P2Turn,
+     /// Player 1 has won the game.
+     P1Won,
+     /// Player 2 has won the game.
+     P2Won,
+     /// The game has ended in a draw (e.g., all squares fired upon with no winner).
+     Draw,
+ }
+ 
+ /**
+  * @description
+  * Defines the set of custom error codes for the Cipher Stratego program.
+  * These provide specific, user-friendly error messages on the client-side
+  * for failed transactions.
+  */
+ #[error_code]
+ pub enum GameError {
+     #[msg("This game is already full.")]
+     GameAlreadyFull,
+     #[msg("The game is not in the correct state for this action.")]
+     InvalidGameState,
+     #[msg("This board has already been submitted.")]
+     BoardAlreadySubmitted,
+     #[msg("It is not your turn.")]
+     NotYourTurn,
+     #[msg("This square has already been targeted.")]
+     SquareAlreadyTargeted,
+     #[msg("The game is not over yet.")]
+     GameNotOver,
+     #[msg("Both players must submit their boards before play can begin.")]
+     BoardsNotSubmitted,
+ }
