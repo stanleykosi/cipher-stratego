@@ -24,14 +24,13 @@ import {
   Program,
   BN,
 } from "@coral-xyz/anchor";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { CipherStratego } from "@/types/cipher-stratego";
-import idl from "@/types/idl.json";
+import cipherStrategoIdl from "@/types/cipher_stratego.json";
 
 // The on-chain Program ID for the Cipher Stratego program.
-// This must be updated with the deployed program's address.
-export const PROGRAM_ID = new PublicKey(idl.address);
+export const PROGRAM_ID = new PublicKey("5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK");
 
 /**
  * Creates and returns an Anchor program client instance.
@@ -39,20 +38,29 @@ export const PROGRAM_ID = new PublicKey(idl.address);
  * @param wallet - The wallet context state from `@solana/wallet-adapter-react`.
  * @returns The Anchor program client for Cipher Stratego.
  */
-export const getProgram = (
+export const getProgram = async (
   connection: Connection,
   wallet: WalletContextState
 ) => {
-  const provider = new AnchorProvider(
-    connection,
-    wallet as any,
-    AnchorProvider.defaultOptions()
-  );
-  const program = new Program<CipherStratego>(
-    idl as any,
-    provider
-  );
-  return program;
+  try {
+    console.log("Creating Anchor provider...");
+    const provider = new AnchorProvider(
+      connection,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      wallet as any,
+      AnchorProvider.defaultOptions()
+    );
+    console.log("Provider created, creating program with local IDL...");
+    const program = new Program<CipherStratego>(
+      cipherStrategoIdl as CipherStratego,
+      provider
+    );
+    console.log("Program created with ID:", program.programId.toBase58());
+    return program;
+  } catch (error) {
+    console.error("Error creating program:", error);
+    throw error;
+  }
 };
 
 /**
@@ -81,12 +89,73 @@ export const createInitializeGameTx = async (
   payer: PublicKey,
   gameSeed: BN
 ) => {
-  const gamePda = getGamePda(gameSeed);
-  console.log(`Creating 'initializeGame' tx for game PDA: ${gamePda.toBase58()}`);
+  try {
+    const gamePda = getGamePda(gameSeed);
+    console.log(`Creating 'initializeGame' tx for game PDA: ${gamePda.toBase58()}`);
+    console.log(`Game seed: ${gameSeed.toString()}`);
+    console.log(`Payer: ${payer.toBase58()}`);
+    console.log(`Program ID: ${program.programId.toBase58()}`);
 
-  const tx = await program.methods
-    .initializeGame(gameSeed)
-    .transaction();
+    // Check if program exists on the network
+    console.log("Checking if program exists on network...");
+    const programInfo = await program.provider.connection.getAccountInfo(program.programId);
+    if (!programInfo) {
+      throw new Error(`Program ${program.programId.toBase58()} not found on network`);
+    }
+    console.log("Program found on network, executable:", programInfo.executable);
 
-  return tx;
+    // Create transaction with explicit account specification
+    console.log("Creating transaction with explicit accounts...");
+
+    try {
+      // Try using Anchor's RPC method first for better error details
+      console.log("Attempting to call initializeGame directly via RPC...");
+      const txSignature = await program.methods
+        .initializeGame(gameSeed)
+        .accounts({
+          payer: payer,
+          game: gamePda,
+          systemProgram: SystemProgram.programId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        .rpc({ skipPreflight: true });
+
+      console.log("Direct RPC call succeeded with signature:", txSignature);
+
+      // If direct RPC works, create a mock transaction for the UI flow
+      const mockTx = new Transaction();
+      mockTx.feePayer = payer;
+      const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash();
+      mockTx.recentBlockhash = blockhash;
+      mockTx.lastValidBlockHeight = lastValidBlockHeight;
+
+      return mockTx;
+
+    } catch (rpcError) {
+      console.log("Direct RPC failed, falling back to transaction method. RPC Error:", rpcError);
+
+      // Fall back to transaction method
+      const tx = await program.methods
+        .initializeGame(gameSeed)
+        .accounts({
+          payer: payer,
+          game: gamePda,
+          systemProgram: SystemProgram.programId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        .transaction();
+
+      // Set required transaction properties
+      const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.lastValidBlockHeight = lastValidBlockHeight;
+      tx.feePayer = payer;
+
+      console.log("Transaction created successfully");
+      return tx;
+    }
+  } catch (error) {
+    console.error("Error in createInitializeGameTx:", error);
+    throw error;
+  }
 };

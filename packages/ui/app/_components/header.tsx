@@ -20,14 +20,20 @@
 "use client";
 
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import React from "react";
+import { useEffect, useState } from "react";
 
 export function Header() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
-    <header className="p-4 flex justify-between items-center border-b">
+    <header className="p-4 flex justify-between items-center border-b border-border">
       <h1 className="text-2xl font-bold text-primary">Cipher Stratego</h1>
       <div>
-        <WalletMultiButton />
+        {mounted && <WalletMultiButton />}
       </div>
     </header>
   );

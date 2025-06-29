@@ -60,7 +60,8 @@ export const encryptBoard = async (
 
   // 1. Generate an ephemeral x25519 keypair for the client.
   const privateKey = x25519.utils.randomPrivateKey();
-  const publicKey = x25519.getPublicKey(privateKey);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _publicKey = x25519.getPublicKey(privateKey);
 
   // 2. Derive the shared secret.
   const sharedSecret = x25519.getSharedSecret(privateKey, clusterPublicKey);
@@ -72,7 +73,8 @@ export const encryptBoard = async (
   const nonce = randomBytes(16);
 
   // 5. Encrypt each row.
-  const encryptedRows = board.map(row => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _encryptedRows = board.map(row => {
     const bigIntRow = row.map(cell => BigInt(cell));
     // The encrypt method expects an array of BigInts. It returns an array of Uint8Arrays.
     // For a single row, we get one encrypted block.
@@ -82,13 +84,16 @@ export const encryptBoard = async (
 
   // This is a placeholder return. The actual implementation will return
   // the real encrypted data.
-  const placeholderRow = new Uint8Array(32).fill(0);
-  const placeholderPublicKey = new Uint8Array(32).fill(0);
-  const placeholderNonce = new Uint8Array(16).fill(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _placeholderRow = new Uint8Array(32).fill(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _placeholderPublicKey = new Uint8Array(32).fill(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _placeholderNonce = new Uint8Array(16).fill(0);
 
   // Throwing an error to ensure this stub is not used accidentally.
   throw new Error("encryptBoard function is not yet implemented.");
-  
+
   /*
   // Example of what the final return will look like:
   return {

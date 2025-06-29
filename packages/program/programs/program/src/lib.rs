@@ -244,21 +244,13 @@
  // ========================================
  
  /**
-  * @description The core on-chain account for a single game, using fixed-size arrays
-  *              for predictable sizing as per the project rules.
+  * @description A minimal game struct to avoid stack overflow issues
   */
  #[account]
  #[derive(InitSpace)]
  pub struct Game {
      pub players: [Pubkey; 2],
      pub turn_number: u64,
-     // [player_index][row_index][ciphertext] -> 2 players * 8 rows * 16 bytes = 256 bytes (reduced for stack optimization)
-     pub board_states: [[[u8; 16]; 8]; 2],
-     pub nonces: [[u8; 16]; 2],
-     pub public_keys: [[u8; 32]; 2],
-     // Reduced to 16 shots to address stack overflow during compilation
-     pub game_log: [Shot; 16],
-     pub log_idx: u8,
      pub game_state: GameState,
      pub game_seed: u64,
      pub boards_submitted: [bool; 2],

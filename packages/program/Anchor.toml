@@ -8,11 +8,14 @@ skip-lint = false
 [programs.localnet]
 cipher_stratego = "5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK"
 
+[programs.devnet]
+cipher_stratego = "5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
