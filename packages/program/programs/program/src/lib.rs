@@ -56,11 +56,12 @@
 
      pub fn submit_board(
          _ctx: Context<SubmitBoard>,
-         _board_rows: [[u8; 32]; 8],
+         _board_rows: Vec<u8>,
          _public_key: [u8; 32],
          _nonce: [u8; 16],
      ) -> Result<()> {
          // TODO: Implement logic in a future step.
+         // Expected board_rows length: 8 * 32 = 256 bytes
          Ok(())
      }
 
@@ -131,7 +132,7 @@
      #[account(
          init,
          payer = payer,
-         space = 8 + std::mem::size_of::<Game>(),
+         space = Game::space(),
          seeds = [b"game", game_seed.to_le_bytes().as_ref()],
          bump
      )]
@@ -216,35 +217,52 @@
  /**
   * @description
   * The core on-chain account for a single game of Cipher Stratego.
+  * Optimized to reduce stack usage by using smaller arrays and vectors.
   */
  #[account]
  pub struct Game {
-     pub players: [Pubkey; 2],
-     pub turn_number: u64,
-     pub board_states: [[[u8; 32]; 8]; 2],
-     pub nonces: [[u8; 16]; 2],
-     pub public_keys: [[u8; 32]; 2],
-     pub game_log: [Shot; 64],
-     pub log_idx: u8,
-     pub game_state: GameState,
-     pub game_seed: u64,
+     pub players: [Pubkey; 2],                    // 64 bytes
+     pub turn_number: u64,                        // 8 bytes
+     pub board_states: Vec<Vec<[u8; 32]>>,       // Variable size, stored on heap (2 players, 8 rows each)
+     pub nonces: [[u8; 16]; 2],                   // 32 bytes
+     pub public_keys: [[u8; 32]; 2],              // 64 bytes
+     pub game_log: Vec<Shot>,                     // Variable size, stored on heap (max 64 shots)
+     pub game_state: GameState,                   // 1 byte
+     pub game_seed: u64,                          // 8 bytes
+ }
+
+ impl Game {
+     pub const INITIAL_SIZE: usize = 
+         64 +    // players
+         8 +     // turn_number
+         4 +     // board_states Vec header
+         32 +    // nonces
+         64 +    // public_keys
+         4 +     // game_log Vec header
+         1 +     // game_state
+         8 +     // game_seed
+         64;     // padding for safety
+
+     pub fn space() -> usize {
+         8 + Self::INITIAL_SIZE // discriminator + data
+     }
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
  pub struct Shot {
-     pub player: Pubkey,
-     pub coord: (u8, u8),
-     pub result: HitOrMiss,
+     pub player: Pubkey,     // 32 bytes
+     pub coord: (u8, u8),    // 2 bytes
+     pub result: HitOrMiss,  // 1 byte
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
  pub enum HitOrMiss {
      #[default]
      Miss,
      Hit,
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
  pub enum GameState {
      #[default]
      AwaitingPlayer,
