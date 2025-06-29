@@ -1,0 +1,69 @@
+{
+  "instructions": [
+    {
+      "name": "check_shot",
+      "inputs": [
+        {
+          "name": "input_ctxt",
+          "type": "encrypted_board_row"
+        },
+        {
+          "name": "x_coord",
+          "type": "u8"
+        }
+      ],
+      "output": {
+        "type": "u8"
+      }
+    },
+    {
+      "name": "reveal_boards",
+      "inputs": [
+        {
+          "name": "p1_board_ctxt",
+          "type": "encrypted_full_board"
+        },
+        {
+          "name": "p2_board_ctxt",
+          "type": "encrypted_full_board"
+        }
+      ],
+      "output": {
+        "type": "revealed_boards"
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "encrypted_board_row",
+      "fields": [
+        {
+          "name": "row",
+          "type": "array_u8_8"
+        }
+      ]
+    },
+    {
+      "name": "encrypted_full_board",
+      "fields": [
+        {
+          "name": "board",
+          "type": "array_array_u8_8_8"
+        }
+      ]
+    },
+    {
+      "name": "revealed_boards",
+      "fields": [
+        {
+          "name": "p1_board",
+          "type": "array_array_u8_8_8"
+        },
+        {
+          "name": "p2_board",
+          "type": "array_array_u8_8_8"
+        }
+      ]
+    }
+  ]
+} 

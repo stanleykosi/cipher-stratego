@@ -204,6 +204,9 @@ export type CipherStratego = {
     },
     {
       "name": "initializeGame",
+      "docs": [
+        "* @description Initializes a new game.\n      * Creates the `Game` PDA and sets the caller as Player 1.\n      *\n      * @param ctx - The context containing the accounts for the instruction.\n      * @param game_seed - A random u64 used to seed the game PDA, ensuring a unique address."
+      ],
       "discriminator": [
         44,
         62,
@@ -609,9 +612,25 @@ export type CipherStratego = {
       }
     },
     {
+      "name": "coordinate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "x",
+            "type": "u8"
+          },
+          {
+            "name": "y",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "game",
       "docs": [
-        "* @description\n  * The core on-chain account for a single game of Cipher Stratego.\n  * Optimized to reduce stack usage by using smaller arrays and vectors."
+        "* @description The core on-chain account for a single game, using fixed-size arrays\n  *              for predictable sizing as per the project rules."
       ],
       "type": {
         "kind": "struct",
@@ -632,14 +651,20 @@ export type CipherStratego = {
           {
             "name": "boardStates",
             "type": {
-              "vec": {
-                "vec": {
+              "array": [
+                {
                   "array": [
-                    "u8",
-                    32
+                    {
+                      "array": [
+                        "u8",
+                        16
+                      ]
+                    },
+                    8
                   ]
-                }
-              }
+                },
+                2
+              ]
             }
           },
           {
@@ -673,12 +698,19 @@ export type CipherStratego = {
           {
             "name": "gameLog",
             "type": {
-              "vec": {
-                "defined": {
-                  "name": "shot"
-                }
-              }
+              "array": [
+                {
+                  "defined": {
+                    "name": "shot"
+                  }
+                },
+                16
+              ]
             }
+          },
+          {
+            "name": "logIdx",
+            "type": "u8"
           },
           {
             "name": "gameState",
@@ -691,6 +723,15 @@ export type CipherStratego = {
           {
             "name": "gameSeed",
             "type": "u64"
+          },
+          {
+            "name": "boardsSubmitted",
+            "type": {
+              "array": [
+                "bool",
+                2
+              ]
+            }
           }
         ]
       }
@@ -747,10 +788,9 @@ export type CipherStratego = {
           {
             "name": "coord",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "defined": {
+                "name": "coordinate"
+              }
             }
           },
           {
@@ -766,4 +806,3 @@ export type CipherStratego = {
     }
   ]
 };
-

@@ -4,20 +4,15 @@
  * entry point and lobby for players.
  *
  * I have updated this page to:
- * - Remove the default Next.js boilerplate content.
- * - Create a clean, centered layout for the main call to action.
- * - Prepare the space for the "Create New Game" button, which will be added
- *   in a future step.
+ * - Replace the placeholder "Create New Game" button with the new, functional
+ *   `CreateGameButton` client component. This delegates the complex client-side
+-    *   logic of wallet interaction and transaction signing to a dedicated component,
+ *   keeping the home page clean and adhering to React best practices.
  *
  * @dependencies
- * - `@/components/ui/button`: The custom Button component (placeholder for now).
  * - `@/components/ui/card`: To structure the content.
- *
- * @notes
- * The actual button functionality will be implemented in a dedicated client component
- * in a later step to handle wallet interactions and on-chain transactions.
+ * - `@/app/_components/create-game-button`: The new client component for game creation.
  */
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -25,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CreateGameButton } from "@/app/_components/create-game-button";
 
 export default function Home() {
   return (
@@ -40,10 +36,7 @@ export default function Home() {
         <CardContent>
           <div className="flex flex-col items-center space-y-4">
             <p>Connect your wallet and start a new game to begin.</p>
-            {/* The functionality for this button will be implemented in Step 9 */}
-            <Button disabled size="lg">
-              Create New Game (Coming Soon)
-            </Button>
+            <CreateGameButton />
           </div>
         </CardContent>
       </Card>

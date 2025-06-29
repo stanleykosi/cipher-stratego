@@ -12,16 +12,7 @@
   "instructions": [
     {
       "name": "fire_shot",
-      "discriminator": [
-        66,
-        150,
-        104,
-        42,
-        242,
-        254,
-        17,
-        199
-      ],
+      "discriminator": [66, 150, 104, 42, 242, 254, 17, 199],
       "accounts": [
         {
           "name": "payer",
@@ -35,12 +26,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
+                "value": [103, 97, 109, 101]
               },
               {
                 "kind": "account",
@@ -72,16 +58,7 @@
     },
     {
       "name": "fire_shot_callback",
-      "discriminator": [
-        144,
-        174,
-        15,
-        132,
-        81,
-        159,
-        129,
-        141
-      ],
+      "discriminator": [144, 174, 15, 132, 81, 159, 129, 141],
       "accounts": [
         {
           "name": "payer",
@@ -106,16 +83,7 @@
     },
     {
       "name": "forfeit",
-      "discriminator": [
-        80,
-        154,
-        237,
-        158,
-        244,
-        198,
-        154,
-        9
-      ],
+      "discriminator": [80, 154, 237, 158, 244, 198, 154, 9],
       "accounts": [
         {
           "name": "player",
@@ -128,12 +96,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
+                "value": [103, 97, 109, 101]
               },
               {
                 "kind": "account",
@@ -148,16 +111,7 @@
     },
     {
       "name": "init_comp_def_check_shot",
-      "discriminator": [
-        234,
-        155,
-        123,
-        215,
-        94,
-        52,
-        96,
-        21
-      ],
+      "discriminator": [234, 155, 123, 215, 94, 52, 96, 21],
       "accounts": [
         {
           "name": "payer",
@@ -173,16 +127,7 @@
     },
     {
       "name": "init_comp_def_reveal_boards",
-      "discriminator": [
-        192,
-        120,
-        161,
-        192,
-        102,
-        77,
-        29,
-        187
-      ],
+      "discriminator": [192, 120, 161, 192, 102, 77, 29, 187],
       "accounts": [
         {
           "name": "payer",
@@ -198,16 +143,8 @@
     },
     {
       "name": "initialize_game",
-      "discriminator": [
-        44,
-        62,
-        102,
-        247,
-        126,
-        208,
-        130,
-        215
-      ],
+      "docs": ["* @description Initializes a new game.\n      * Creates the `Game` PDA and sets the caller as Player 1.\n      *\n      * @param ctx - The context containing the accounts for the instruction.\n      * @param game_seed - A random u64 used to seed the game PDA, ensuring a unique address."],
+      "discriminator": [44, 62, 102, 247, 126, 208, 130, 215],
       "accounts": [
         {
           "name": "payer",
@@ -221,12 +158,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
+                "value": [103, 97, 109, 101]
               },
               {
                 "kind": "arg",
@@ -242,23 +174,14 @@
       ],
       "args": [
         {
-          "name": "_game_seed",
+          "name": "game_seed",
           "type": "u64"
         }
       ]
     },
     {
       "name": "join_game",
-      "discriminator": [
-        107,
-        112,
-        18,
-        38,
-        56,
-        173,
-        60,
-        128
-      ],
+      "discriminator": [107, 112, 18, 38, 56, 173, 60, 128],
       "accounts": [
         {
           "name": "payer",
@@ -272,12 +195,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
+                "value": [103, 97, 109, 101]
               },
               {
                 "kind": "account",
@@ -292,16 +210,7 @@
     },
     {
       "name": "reveal_boards",
-      "discriminator": [
-        129,
-        221,
-        53,
-        171,
-        116,
-        131,
-        107,
-        115
-      ],
+      "discriminator": [129, 221, 53, 171, 116, 131, 107, 115],
       "accounts": [
         {
           "name": "payer",
@@ -314,12 +223,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
+                "value": [103, 97, 109, 101]
               },
               {
                 "kind": "account",
@@ -346,19 +250,13 @@
         {
           "name": "_p1_pubkey",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
+            "array": ["u8", 32]
           }
         },
         {
           "name": "_p1_nonce",
           "type": {
-            "array": [
-              "u8",
-              16
-            ]
+            "array": ["u8", 16]
           }
         },
         {
@@ -368,35 +266,20 @@
         {
           "name": "_p2_pubkey",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
+            "array": ["u8", 32]
           }
         },
         {
           "name": "_p2_nonce",
           "type": {
-            "array": [
-              "u8",
-              16
-            ]
+            "array": ["u8", 16]
           }
         }
       ]
     },
     {
       "name": "reveal_boards_callback",
-      "discriminator": [
-        18,
-        199,
-        189,
-        97,
-        196,
-        184,
-        67,
-        111
-      ],
+      "discriminator": [18, 199, 189, 97, 196, 184, 67, 111],
       "accounts": [
         {
           "name": "payer",
@@ -417,16 +300,7 @@
     },
     {
       "name": "submit_board",
-      "discriminator": [
-        159,
-        144,
-        132,
-        92,
-        198,
-        49,
-        200,
-        53
-      ],
+      "discriminator": [159, 144, 132, 92, 198, 49, 200, 53],
       "accounts": [
         {
           "name": "player",
@@ -439,12 +313,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
+                "value": [103, 97, 109, 101]
               },
               {
                 "kind": "account",
@@ -463,19 +332,13 @@
         {
           "name": "_public_key",
           "type": {
-            "array": [
-              "u8",
-              32
-            ]
+            "array": ["u8", 32]
           }
         },
         {
           "name": "_nonce",
           "type": {
-            "array": [
-              "u8",
-              16
-            ]
+            "array": ["u8", 16]
           }
         }
       ]
@@ -484,31 +347,13 @@
   "accounts": [
     {
       "name": "Game",
-      "discriminator": [
-        27,
-        90,
-        166,
-        125,
-        74,
-        100,
-        121,
-        18
-      ]
+      "discriminator": [27, 90, 166, 125, 74, 100, 121, 18]
     }
   ],
   "events": [
     {
       "name": "BoardRevealEvent",
-      "discriminator": [
-        73,
-        35,
-        129,
-        180,
-        128,
-        92,
-        116,
-        165
-      ]
+      "discriminator": [73, 35, 129, 180, 128, 92, 116, 165]
     }
   ],
   "errors": [
@@ -559,10 +404,7 @@
             "type": {
               "array": [
                 {
-                  "array": [
-                    "u8",
-                    8
-                  ]
+                  "array": ["u8", 8]
                 },
                 8
               ]
@@ -573,10 +415,7 @@
             "type": {
               "array": [
                 {
-                  "array": [
-                    "u8",
-                    8
-                  ]
+                  "array": ["u8", 8]
                 },
                 8
               ]
@@ -592,9 +431,7 @@
         "variants": [
           {
             "name": "Bytes",
-            "fields": [
-              "bytes"
-            ]
+            "fields": ["bytes"]
           },
           {
             "name": "Abort"
@@ -603,20 +440,31 @@
       }
     },
     {
+      "name": "Coordinate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "x",
+            "type": "u8"
+          },
+          {
+            "name": "y",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "Game",
-      "docs": [
-        "* @description\n  * The core on-chain account for a single game of Cipher Stratego.\n  * Optimized to reduce stack usage by using smaller arrays and vectors."
-      ],
+      "docs": ["* @description The core on-chain account for a single game, using fixed-size arrays\n  *              for predictable sizing as per the project rules."],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "players",
             "type": {
-              "array": [
-                "pubkey",
-                2
-              ]
+              "array": ["pubkey", 2]
             }
           },
           {
@@ -626,14 +474,17 @@
           {
             "name": "board_states",
             "type": {
-              "vec": {
-                "vec": {
+              "array": [
+                {
                   "array": [
-                    "u8",
-                    32
+                    {
+                      "array": ["u8", 16]
+                    },
+                    8
                   ]
-                }
-              }
+                },
+                2
+              ]
             }
           },
           {
@@ -641,10 +492,7 @@
             "type": {
               "array": [
                 {
-                  "array": [
-                    "u8",
-                    16
-                  ]
+                  "array": ["u8", 16]
                 },
                 2
               ]
@@ -655,10 +503,7 @@
             "type": {
               "array": [
                 {
-                  "array": [
-                    "u8",
-                    32
-                  ]
+                  "array": ["u8", 32]
                 },
                 2
               ]
@@ -667,12 +512,19 @@
           {
             "name": "game_log",
             "type": {
-              "vec": {
-                "defined": {
-                  "name": "Shot"
-                }
-              }
+              "array": [
+                {
+                  "defined": {
+                    "name": "Shot"
+                  }
+                },
+                16
+              ]
             }
+          },
+          {
+            "name": "log_idx",
+            "type": "u8"
           },
           {
             "name": "game_state",
@@ -685,6 +537,12 @@
           {
             "name": "game_seed",
             "type": "u64"
+          },
+          {
+            "name": "boards_submitted",
+            "type": {
+              "array": ["bool", 2]
+            }
           }
         ]
       }
@@ -741,10 +599,9 @@
           {
             "name": "coord",
             "type": {
-              "array": [
-                "u8",
-                2
-              ]
+              "defined": {
+                "name": "Coordinate"
+              }
             }
           },
           {
