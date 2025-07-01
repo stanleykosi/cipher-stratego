@@ -146,8 +146,14 @@ export function CreateGameButton() {
       console.log("Transaction confirmed:", signature);
 
       // 5. Derive the game PDA address to redirect the user.
+      console.log("Step 5: Redirecting to game page...");
       const gamePda = getGamePda(gameSeed);
-      router.push(`/game/${gamePda.toBase58()}`);
+      console.log("Game PDA derived:", gamePda.toBase58());
+      const gameUrl = `/game/${gamePda.toBase58()}`;
+      console.log("Navigating to:", gameUrl);
+
+      // Use window.location.href for more reliable navigation in dev mode
+      window.location.href = gameUrl;
     } catch (err: unknown) {
       console.error("Failed to create game:", err);
       console.error("Error details:", {

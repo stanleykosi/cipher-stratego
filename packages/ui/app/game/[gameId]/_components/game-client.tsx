@@ -32,7 +32,8 @@ import { BN } from '@coral-xyz/anchor';
 import { getProgram, createJoinGameTx } from '@/lib/solana';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Copy, Check } from 'lucide-react';
 
 // Local alias for on-chain GameState enum variants
 type GameStateEnum = 'awaitingPlayer' | 'p1Turn' | 'p2Turn' | 'p1Won' | 'p2Won' | 'draw';
@@ -61,6 +62,7 @@ export default function GameClient({ initialGameState, gameId }: GameClientProps
   }));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const userRole = useMemo(() => {
     if (!wallet.publicKey) return 'spectator';
@@ -120,6 +122,23 @@ export default function GameClient({ initialGameState, gameId }: GameClientProps
     }
   };
 
+  const handleCopyGameLink = async () => {
+    const gameUrl = `${window.location.origin}/game/${gameId}`;
+    try {
+      await navigator.clipboard.writeText(gameUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy game link:', err);
+      // Fallback: select the text in the input field
+      const input = document.getElementById('game-link-input') as HTMLInputElement;
+      if (input) {
+        input.select();
+        input.setSelectionRange(0, 99999);
+      }
+    }
+  };
+
   const renderContent = () => {
     switch (gameState.gameState) {
       case 'awaitingPlayer':
@@ -130,10 +149,34 @@ export default function GameClient({ initialGameState, gameId }: GameClientProps
             </CardHeader>
             <CardContent>
               {userRole === 'p1' && (
-                <div>
+                <div className="space-y-4">
                   <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
-                  <p className="mt-4">Share the game link with your opponent.</p>
-                  <p className="mt-2 text-sm text-muted-foreground">They will be able to join using this page.</p>
+                  <p>Share this link with your opponent:</p>
+
+                  <div className="flex gap-2">
+                    <Input
+                      id="game-link-input"
+                      value={`${typeof window !== 'undefined' ? window.location.origin : ''}/game/${gameId}`}
+                      readOnly
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyGameLink}
+                      className="shrink-0"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    {copied ? 'Link copied to clipboard!' : 'Click the copy button to share the game link'}
+                  </p>
                 </div>
               )}
               {userRole === 'spectator' && (
