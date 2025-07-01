@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/cipher_stratego.json`.
  */
 export type CipherStratego = {
-  "address": "5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK",
+  "address": "G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm",
   "metadata": {
     "name": "cipherStratego",
     "version": "0.1.0",
@@ -205,7 +205,7 @@ export type CipherStratego = {
     {
       "name": "initializeGame",
       "docs": [
-        "* @description Initializes a new game.\n      * Creates the `Game` PDA and sets the caller as Player 1.\n      *\n      * @param ctx - The context containing the accounts for the instruction.\n      * @param game_seed - A random u64 used to seed the game PDA, ensuring a unique address."
+        "* @description Initializes a new game.\n      * Creates the `Game` PDA and sets the caller as Player 1."
       ],
       "discriminator": [
         44,
@@ -258,6 +258,9 @@ export type CipherStratego = {
     },
     {
       "name": "joinGame",
+      "docs": [
+        "* @description Allows a second player to join an existing game.\n      *\n      * @validation\n      * - Fails if the game is not in the `AwaitingPlayer` state.\n      * - Fails if the game already has a second player.\n      * - Fails if the caller is the same as Player 1."
+      ],
       "discriminator": [
         107,
         112,
@@ -523,38 +526,13 @@ export type CipherStratego = {
   "errors": [
     {
       "code": 6000,
-      "name": "gameAlreadyFull",
-      "msg": "This game is already full."
+      "name": "invalidFinalizeTx",
+      "msg": "Invalid finalize transaction"
     },
     {
       "code": 6001,
-      "name": "invalidGameState",
-      "msg": "The game is not in the correct state for this action."
-    },
-    {
-      "code": 6002,
-      "name": "boardAlreadySubmitted",
-      "msg": "This board has already been submitted."
-    },
-    {
-      "code": 6003,
-      "name": "notYourTurn",
-      "msg": "It is not your turn."
-    },
-    {
-      "code": 6004,
-      "name": "squareAlreadyTargeted",
-      "msg": "This square has already been targeted."
-    },
-    {
-      "code": 6005,
-      "name": "gameNotOver",
-      "msg": "The game is not over yet."
-    },
-    {
-      "code": 6006,
-      "name": "boardsNotSubmitted",
-      "msg": "Both players must submit their boards before play can begin."
+      "name": "invalidAccount",
+      "msg": "Invalid account"
     }
   ],
   "types": [
@@ -630,7 +608,7 @@ export type CipherStratego = {
     {
       "name": "game",
       "docs": [
-        "* @description The core on-chain account for a single game, using fixed-size arrays\n  *              for predictable sizing as per the project rules."
+        "* @description The main PDA for a single game instance, as per the tech spec.\n  * @size\n  * players: 2 * 32 = 64\n  * turn_number: 8\n  * board_states: 2 * 4 * 8 = 64\n  * nonces: 2 * 16 = 32\n  * public_keys: 2 * 32 = 64\n  * game_log: 4 * (32 + 2 + 1) = 4 * 35 = 140\n  * log_idx: 1\n  * game_state: 1 + 1 = 2\n  * game_seed: 8\n  * boards_submitted: 2 * 1 = 2\n  * TOTAL: 2928 bytes + 8 (discriminator)"
       ],
       "type": {
         "kind": "struct",
@@ -657,10 +635,10 @@ export type CipherStratego = {
                     {
                       "array": [
                         "u8",
-                        16
+                        8
                       ]
                     },
-                    8
+                    4
                   ]
                 },
                 2
@@ -704,7 +682,7 @@ export type CipherStratego = {
                     "name": "shot"
                   }
                 },
-                16
+                4
               ]
             }
           },
@@ -755,9 +733,6 @@ export type CipherStratego = {
           },
           {
             "name": "p2Won"
-          },
-          {
-            "name": "draw"
           }
         ]
       }

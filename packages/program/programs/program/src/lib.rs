@@ -12,13 +12,15 @@
  * - Declares the main program module `cipher_stratego` where all instructions will be implemented.
  *
  * I have updated this file to:
- * 1.  Redefine the `Game` struct to use fixed-size arrays instead of `Vec`, aligning with
- *     the project rules and on-chain best practices for predictable account sizes. This includes
- *     using `[Shot; 64]` for the game log and fixed arrays for board states.
- * 2.  Added a `boards_submitted` field to the `Game` struct to track board submission status.
- * 3.  Derived `InitSpace` for all state structs to enable automatic and accurate space calculation.
- * 4.  Implemented the full logic for the `initialize_game` instruction, which now correctly
- *     initializes the new fixed-size `Game` account PDA.
+ * 1.  Implement the logic for the `join_game` instruction. This includes comprehensive validation
+ *     to ensure the game is in the correct state, is not already full, and that the joining
+ *     player is not the creator.
+ * 2.  Upon a successful join, the instruction now updates the `Game` account by storing the second
+ *     player's public key and transitioning the `game_state` to `P1Turn`, signaling that
+ *     the game is ready for the board submission phase.
+ * 3.  Replaced the minimal `Game` struct with the full-featured version from the technical
+ *     specification, which includes fields for encrypted board states, nonces, public keys, and
+ *     a game log. This prepares the program for subsequent gameplay logic.
  *
  * @dependencies
  * - `anchor_lang`: The core Anchor framework for Solana program development.
@@ -29,9 +31,8 @@
  use arcium_anchor::ComputationOutputs;
  use arcium_macros::arcium_program;
  
- // This is a placeholder Program ID. It will be replaced with the actual
- // program ID when the program is deployed.
- declare_id!("5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK");
+ // Program ID for the deployed Cipher Stratego program on devnet
+ declare_id!("G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm");
  
  // Constants for the Arcis computation definition offsets.
  // These are used to uniquely identify our confidential instructions.
@@ -56,9 +57,6 @@
      /**
       * @description Initializes a new game.
       * Creates the `Game` PDA and sets the caller as Player 1.
-      *
-      * @param ctx - The context containing the accounts for the instruction.
-      * @param game_seed - A random u64 used to seed the game PDA, ensuring a unique address.
       */
      pub fn initialize_game(ctx: Context<InitializeGame>, game_seed: u64) -> Result<()> {
          let game = &mut ctx.accounts.game;
@@ -70,16 +68,44 @@
          game.game_state = GameState::AwaitingPlayer;
          game.game_seed = game_seed;
          
-         // The rest of the fields (turn_number, board_states, etc.) are zero-initialized
-         // by Anchor's `init` constraint, which serves as a valid default state.
+         // The rest of the fields are zero-initialized by Anchor's `init` constraint,
+         // which serves as a valid default state.
  
          msg!("Game PDA initialized at address: {}", game.key());
          msg!("Player 1 set to: {}", ctx.accounts.payer.key());
          Ok(())
      }
  
-     pub fn join_game(_ctx: Context<JoinGame>) -> Result<()> {
-         // TODO: Implement logic in a future step.
+     /**
+      * @description Allows a second player to join an existing game.
+      *
+      * @validation
+      * - Fails if the game is not in the `AwaitingPlayer` state.
+      * - Fails if the game already has a second player.
+      * - Fails if the caller is the same as Player 1.
+      */
+     pub fn join_game(ctx: Context<JoinGame>) -> Result<()> {
+         let game = &mut ctx.accounts.game;
+         let player = &ctx.accounts.payer;
+ 
+         msg!("Player {} attempting to join game {}", player.key(), game.key());
+ 
+         // Validate game state
+         require!(game.game_state == GameState::AwaitingPlayer, GameError::InvalidGameState);
+ 
+         // Validate that P2 slot is empty
+         require_keys_eq!(game.players[1], Pubkey::default(), GameError::GameAlreadyFull);
+ 
+         // Validate that P2 is not the same as P1
+         require_keys_neq!(player.key(), game.players[0], GameError::PlayerCannotJoinOwnGame);
+ 
+         // Update game state
+         game.players[1] = player.key();
+         game.game_state = GameState::P1Turn; // Game now moves to board setup phase, P1 starts
+ 
+         msg!("Player {} successfully joined as Player 2.", player.key());
+         msg!("Game state transitioned to {:?}", game.game_state);
+ 
          Ok(())
      }
  
@@ -90,7 +116,6 @@
          _nonce: [u8; 16],
      ) -> Result<()> {
          // TODO: Implement logic in a future step.
-         // Expected board_rows length: 8 * 16 = 128 bytes (reduced from 256 for stack optimization)
          Ok(())
      }
  
@@ -161,7 +186,7 @@
      #[account(
          init,
          payer = payer,
-         space = 8 + Game::INIT_SPACE, // 8 bytes for the account discriminator
+         space = 8 + Game::SIZE, // 8 bytes for the account discriminator
          seeds = [b"game", game_seed.to_le_bytes().as_ref()],
          bump
      )]
@@ -244,47 +269,78 @@
  // ========================================
  
  /**
-  * @description A minimal game struct to avoid stack overflow issues
+  * @description The main PDA for a single game instance, as per the tech spec.
+  * @size
+  * players: 2 * 32 = 64
+  * turn_number: 8
+  * board_states: 2 * 4 * 8 = 64
+  * nonces: 2 * 16 = 32
+  * public_keys: 2 * 32 = 64
+  * game_log: 4 * (32 + 2 + 1) = 4 * 35 = 140
+  * log_idx: 1
+  * game_state: 1 + 1 = 2
+  * game_seed: 8
+  * boards_submitted: 2 * 1 = 2
+  * TOTAL: 2928 bytes + 8 (discriminator)
   */
  #[account]
- #[derive(InitSpace)]
  pub struct Game {
-     pub players: [Pubkey; 2],
-     pub turn_number: u64,
-     pub game_state: GameState,
-     pub game_seed: u64,
-     pub boards_submitted: [bool; 2],
+     pub players: [Pubkey; 2],                    // 64
+     pub turn_number: u64,                        // 8
+     // [player_index][row_index][ciphertext]
+     pub board_states: [[[u8; 8]; 4]; 2],         // 64
+     pub nonces: [[u8; 16]; 2],                  // 32
+     pub public_keys: [[u8; 32]; 2],             // 64
+     // Max 4 shots for an 8x8 grid.
+     pub game_log: [Shot; 4],                    // 140 (4 * 35 bytes each)
+     pub log_idx: u8,                            // 1
+     pub game_state: GameState,                  // 1
+     pub game_seed: u64,                         // 8
+     pub boards_submitted: [bool; 2],            // 2
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
+ impl Game {
+     // Discriminator (8) is added where the constant is used (space = 8 + SIZE)
+     pub const SIZE: usize = 64   // players
+         + 8                       // turn_number
+         + 64                      // board_states (2*4*8)
+         + 32                      // nonces
+         + 64                      // public_keys
+         + 140                     // game_log (4 shots * 35 bytes each)
+         + 1                       // log_idx
+         + 1                       // game_state (enum repr u8)
+         + 8                       // game_seed
+         + 2;                      // boards_submitted
+ }
+ 
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
  pub struct Coordinate {
      pub x: u8,
      pub y: u8,
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
  pub struct Shot {
      pub player: Pubkey,
      pub coord: Coordinate,
      pub result: HitOrMiss,
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
  pub enum HitOrMiss {
      #[default]
      Miss,
      Hit,
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, InitSpace)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
  pub enum GameState {
      #[default]
      AwaitingPlayer, // Game created, waiting for P2
-     P1Turn,         // Player 1's turn
-     P2Turn,         // Player 2's turn
+     P1Turn,         // Board submission phase OR Player 1's turn to fire
+     P2Turn,         // Player 2's turn to fire
      P1Won,          // Player 1 has won
      P2Won,          // Player 2 has won
-     Draw,           // Not used in this game, but good practice
  }
  
  #[event]
@@ -313,4 +369,6 @@
      GameNotOver,
      #[msg("Both players must submit their boards before play can begin.")]
      BoardsNotSubmitted,
+     #[msg("A player cannot join a game they created.")]
+     PlayerCannotJoinOwnGame,
  }

@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-cipher_stratego = "5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK"
+cipher_stratego = "G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm"
 
 [programs.devnet]
-cipher_stratego = "5UejADLz4JjiCDqYqDh4xZubzcTjPdZw7fSqvQq9wBjK"
+cipher_stratego = "G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm"
 
 [registry]
 url = "https://api.apr.dev"

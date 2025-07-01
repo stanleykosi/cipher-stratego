@@ -1,133 +1,98 @@
-"use client";
-
-import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
+/**
+ * @description
+ * This is the server component for the game page, responsible for fetching the
+ * initial state of a specific game from the Solana blockchain.
+ *
+ * I have refactored this file to:
+ * 1.  Function as a Next.js Server Component, which is best practice for data fetching.
+ * 2.  It fetches the game account data using the `gameId` from the URL parameters.
+ * 3.  If the game is found, it passes the initial game state and the game's public
+ *     key to the new `GameClient` component for interactive rendering.
+ * 4.  It handles cases where the game is not found or an error occurs during fetching,
+ *     providing clear feedback to the user.
+ *
+ * @dependencies
+ * - `next/navigation`: To get URL parameters.
+ * - `@solana/web3.js`: For `PublicKey` and `Connection`.
+ * - `@/lib/solana`: For the `getProgram` helper.
+ * - `@/app/game/[gameId]/_components/game-client`: The client component that will render the game UI.
+ */
+import { Connection, PublicKey } from "@solana/web3.js";
+import { notFound } from "next/navigation";
+import GameClient from "@/app/game/[gameId]/_components/game-client";
 import { getProgram } from "@/lib/solana";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AnchorProvider } from "@coral-xyz/anchor";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Types from IDL (limited to what we need)
-interface GameAccount {
-  players: PublicKey[];
-  turnNumber: bigint;
-  gameSeed: bigint;
-  gameState: {
-    awaitingPlayer?: {};
-    p1Turn?: {};
-    p2Turn?: {};
-    p1Won?: {};
-    p2Won?: {};
-    draw?: {};
-  };
+// Revalidate the page on every request to get the latest game state
+export const revalidate = 0;
+
+interface GamePageProps {
+  params: Promise<{
+    gameId: string;
+  }>;
 }
 
-/**
- * GamePage
- * -------------------------------------------
- * A simple client page that fetches the on-chain `Game` account using the PDA
- * from the URL ( `/game/[gameId]` ) and displays basic information such as the
- * players, game seed, and current state.  This unblocks navigation after a
- * game is created – until full game-board UI is implemented.
- */
-export default function GamePage() {
-  const params = useParams();
-  const { connection } = useConnection();
-  const gameId = Array.isArray(params?.gameId) ? params.gameId[0] : params?.gameId;
+export default async function GamePage({ params }: GamePageProps) {
+  const { gameId } = await params;
+  let gamePda: PublicKey;
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [game, setGame] = useState<any | null>(null);
-
-  const GAME_STATE_NAMES = [
-    "Awaiting Player",
-    "P1 Turn",
-    "P2 Turn",
-    "P1 Won",
-    "P2 Won",
-    "Draw",
-  ];
-
-  useEffect(() => {
-    if (!gameId) return;
-
-    const fetchGame = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // For a read-only query we can stub the wallet
-        const dummyWallet = {
-          publicKey: null,
-          connected: false,
-          signTransaction: undefined,
-          signAllTransactions: undefined,
-        } as unknown as Parameters<typeof getProgram>[1];
-
-        const program = await getProgram(connection, dummyWallet);
-        const account = await program.account.game.fetch(new PublicKey(gameId));
-        setGame(account);
-      } catch (err) {
-        console.error("Failed to fetch game:", err);
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchGame();
-  }, [connection, gameId]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center py-10 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        <p className="mt-2 text-sm">Loading game…</p>
-      </div>
-    );
+  try {
+    gamePda = new PublicKey(gameId);
+  } catch {
+    console.error("Invalid Game ID (not a valid public key):", gameId);
+    notFound();
   }
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center py-10">
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
-          Retry
-        </Button>
-      </div>
-    );
-  }
-
-  if (!game) {
-    return (
-      <div className="flex items-center justify-center py-10 text-muted-foreground">
-        Game account not found on chain.
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-3xl space-y-6 py-10">
-      <h1 className="text-2xl font-bold">Cipher Stratego – Game</h1>
-
-      <section className="rounded-lg border p-4">
-        <h2 className="mb-2 font-medium">General</h2>
-        <p className="break-all"><span className="font-medium">PDA:</span> {gameId}</p>
-        <p><span className="font-medium">Seed:</span> {game.gameSeed.toString()}</p>
-        <p><span className="font-medium">Turn #:</span> {game.turnNumber.toString()}</p>
-        <p><span className="font-medium">State:</span> {GAME_STATE_NAMES[game.gameState] ?? "Unknown"}</p>
-      </section>
-
-      <section className="rounded-lg border p-4">
-        <h2 className="mb-2 font-medium">Players</h2>
-        <p className="break-all"><span className="font-medium">Player 1:</span> {game.players[0].toBase58?.() ?? game.players[0]}</p>
-        <p className="break-all"><span className="font-medium">Player 2:</span> {game.players[1].toBase58?.() ?? game.players[1]}</p>
-      </section>
-
-      <section className="rounded-lg border p-4 text-muted-foreground">
-        Full gameplay UI coming soon…
-      </section>
-    </div>
+  // Use a server-side connection. For production, use an environment variable.
+  const connection = new Connection(
+    process.env.NEXT_PUBLIC_SOLANA_RPC_HOST || "https://api.devnet.solana.com",
+    "confirmed"
   );
-} 
+
+  // For server-side fetching, we don't have a user's wallet.
+  // We can create a "dummy" wallet object that AnchorProvider can use for read-only operations.
+  const dummyWallet = {
+    publicKey: PublicKey.unique(), // A throwaway public key
+    signTransaction: () => Promise.reject(new Error("Dummy wallet cannot sign")),
+    signAllTransactions: () => Promise.reject(new Error("Dummy wallet cannot sign")),
+  };
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const provider = new AnchorProvider(connection, dummyWallet as any, AnchorProvider.defaultOptions());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const program = await getProgram(connection, provider.wallet as any);
+
+    // Fetch the game account data
+    const game = await program.account.game.fetch(gamePda);
+
+    // The fetched data needs to be serialized to be passed from Server to Client Component
+    const initialGameState = {
+      ...game,
+      players: game.players.map(p => p.toBase58()),
+      turnNumber: game.turnNumber.toString(),
+      gameSeed: game.gameSeed.toString(),
+    }
+
+    return <GameClient initialGameState={initialGameState} gameId={gameId} />;
+  } catch (error) {
+    console.error(`Failed to fetch game account ${gameId}:`, error);
+    // This could be a 404 if the account doesn't exist, or another error.
+    // We'll show a user-friendly message.
+    return (
+      <div className="flex h-full min-h-[calc(100vh-150px)] items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle className="text-destructive">Error Loading Game</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Could not find or load the game with ID:</p>
+            <p className="mt-2 break-all font-mono text-sm text-muted-foreground">{gameId}</p>
+            <p className="mt-4">Please check the link and try again.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+}
