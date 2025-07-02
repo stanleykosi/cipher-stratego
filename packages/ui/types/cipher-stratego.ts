@@ -469,8 +469,8 @@ export type CipherStratego = {
       ],
       "args": [
         {
-          "name": "boardRows",
-          "type": "bytes"
+          "name": "encryptedRows",
+          "type": {"array": [{"array": ["u8", 32]}, 8]}
         },
         {
           "name": "publicKey",

@@ -15,7 +15,7 @@
  */
 
 // On-chain program enums, mirrored on the client for type safety.
-export type GameStateEnum = 'awaitingPlayer' | 'p1Turn' | 'p2Turn' | 'p1Won' | 'p2Won';
+export type GameStateEnum = 'AwaitingPlayer' | 'BoardSetup' | 'P1Turn' | 'P2Turn' | 'P1Won' | 'P2Won';
 export type HitOrMiss = 'miss' | 'hit';
 
 /**

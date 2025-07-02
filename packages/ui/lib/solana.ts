@@ -28,6 +28,7 @@ import { Connection, PublicKey, SystemProgram, Transaction } from "@solana/web3.
 import { WalletContextState } from "@solana/wallet-adapter-react";
 import { CipherStratego } from "@/types/cipher-stratego";
 import cipherStrategoIdl from "@/types/cipher_stratego.json";
+import { type EncryptedBoardPayload } from './arcium';
 
 // The on-chain Program ID for the Cipher Stratego program.
 export const PROGRAM_ID = new PublicKey("G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm");
@@ -128,3 +129,38 @@ export const createJoinGameTx = async (
 
   return tx;
 }
+
+/**
+ * Constructs the transaction to submit a player's encrypted board.
+ * @param program - The Anchor program client.
+ * @param player - The public key of the submitting player.
+ * @param gamePda - The public key of the game account.
+ * @param payload - The encrypted board data.
+ * @returns A promise that resolves to the transaction object.
+ */
+export const createSubmitBoardTx = async (
+  program: Program<CipherStratego>,
+  player: PublicKey,
+  gamePda: PublicKey,
+  payload: EncryptedBoardPayload
+): Promise<Transaction> => {
+  const tx = await program.methods
+    .submitBoard(
+      payload.encryptedRows.map(row => Array.from(row)),
+      Array.from(payload.ephemeralPublicKey),
+      Array.from(payload.nonce)
+    )
+    .accounts({
+      player: player,
+      game: gamePda,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
+    .transaction();
+
+  tx.feePayer = player;
+  const { blockhash, lastValidBlockHeight } = await program.provider.connection.getLatestBlockhash();
+  tx.recentBlockhash = blockhash;
+  tx.lastValidBlockHeight = lastValidBlockHeight;
+
+  return tx;
+};

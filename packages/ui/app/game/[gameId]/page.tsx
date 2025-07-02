@@ -19,7 +19,7 @@
  */
 import { Connection, PublicKey } from "@solana/web3.js";
 import { notFound } from "next/navigation";
-import GameClient from "@/app/game/[gameId]/_components/game-client";
+import GameClientWrapper from "@/app/game/[gameId]/_components/game-client-wrapper";
 import { getProgram } from "@/lib/solana";
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,13 +70,30 @@ export default async function GamePage({ params }: GamePageProps) {
 
     // Handle both enum object format and numeric format
     let parsedGameState: ClientGameState['gameState'];
+    console.log("Raw game state from blockchain:", game.gameState, typeof game.gameState);
+
     if (typeof game.gameState === 'object' && game.gameState !== null) {
-      // Old format: { awaitingPlayer: {} }
-      parsedGameState = Object.keys(game.gameState)[0] as ClientGameState['gameState'];
+      // Old format: { awaitingPlayer: {} } - convert to new format
+      const oldKey = Object.keys(game.gameState)[0];
+      console.log("Old object format key:", oldKey);
+
+      // Map old keys to new format
+      const oldToNewMapping: Record<string, ClientGameState['gameState']> = {
+        'awaitingPlayer': 'AwaitingPlayer',
+        'boardSetup': 'BoardSetup',
+        'p1Turn': 'P1Turn',
+        'p2Turn': 'P2Turn',
+        'p1Won': 'P1Won',
+        'p2Won': 'P2Won'
+      };
+
+      parsedGameState = oldToNewMapping[oldKey] || oldKey as ClientGameState['gameState'];
+      console.log("Mapped to new format:", parsedGameState);
     } else {
-      // New format: numeric enum
-      const gameStateMapping = ['awaitingPlayer', 'p1Turn', 'p2Turn', 'p1Won', 'p2Won'];
+      // New format: numeric enum - using exact IDL casing
+      const gameStateMapping = ['AwaitingPlayer', 'BoardSetup', 'P1Turn', 'P2Turn', 'P1Won', 'P2Won'];
       parsedGameState = gameStateMapping[game.gameState as number] as ClientGameState['gameState'];
+      console.log("Numeric format mapped to:", parsedGameState);
     }
 
     // The fetched data needs to be serialized to be passed from Server to Client Component
@@ -88,7 +105,7 @@ export default async function GamePage({ params }: GamePageProps) {
       boardsSubmitted: game.boardsSubmitted || [false, false],
     }
 
-    return <GameClient initialGameState={initialGameState} gameId={gameId} />;
+    return <GameClientWrapper initialGameState={initialGameState} gameId={gameId} />;
   } catch (error) {
     console.error(`Failed to fetch game account ${gameId}:`, error);
     // This could be a 404 if the account doesn't exist, or another error.

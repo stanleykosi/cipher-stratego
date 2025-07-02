@@ -21,11 +21,6 @@
  * 3.  Replaced the minimal `Game` struct with the full-featured version from the technical
  *     specification, which includes fields for encrypted board states, nonces, public keys, and
  *     a game log. This prepares the program for subsequent gameplay logic.
- *
- * @dependencies
- * - `anchor_lang`: The core Anchor framework for Solana program development.
- * - `arcium_macros`: Provides the `#[arcium_program]` macro, a required wrapper for
- *   programs that interact with the Arcium network.
  */
  use anchor_lang::prelude::*;
  use arcium_anchor::ComputationOutputs;
@@ -101,7 +96,7 @@
  
          // Update game state
          game.players[1] = player.key();
-         game.game_state = GameState::P1Turn; // Game now moves to board setup phase, P1 starts
+         game.game_state = GameState::BoardSetup;
  
          msg!("Player {} successfully joined as Player 2.", player.key());
          msg!("Game state transitioned to {:?}", game.game_state);
@@ -109,13 +104,48 @@
          Ok(())
      }
  
+     /**
+      * @description Submits a player's encrypted board layout.
+      *
+      * @validation
+      * - Fails if the game is not in the `BoardSetup` state.
+      * - Fails if the player has already submitted their board.
+      * - Transitions the game state to `P1Turn` if both boards are submitted.
+      */
      pub fn submit_board(
-         _ctx: Context<SubmitBoard>,
-         _board_rows: Vec<u8>,
-         _public_key: [u8; 32],
-         _nonce: [u8; 16],
+         ctx: Context<SubmitBoard>,
+         encrypted_rows: [[u8; 32]; 8],
+         public_key: [u8; 32],
+         nonce: [u8; 16],
      ) -> Result<()> {
-         // TODO: Implement logic in a future step.
+         let game = &mut ctx.accounts.game;
+         let player = &ctx.accounts.player;
+ 
+         msg!("Player {} submitting board for game {}", player.key(), game.key());
+ 
+         // Validate game state
+         require!(game.game_state == GameState::BoardSetup, GameError::InvalidGameState);
+ 
+         // Determine player index
+         let player_index = if player.key() == game.players[0] { 0 } else { 1 };
+ 
+         // Validate that the board has not been submitted yet
+         require!(!game.boards_submitted[player_index], GameError::BoardAlreadySubmitted);
+ 
+         // Store the encrypted data
+         game.board_states[player_index] = encrypted_rows;
+         game.public_keys[player_index] = public_key;
+         game.nonces[player_index] = nonce;
+         game.boards_submitted[player_index] = true;
+ 
+         msg!("Board for player {} successfully submitted.", player_index + 1);
+ 
+         // If both players have submitted their boards, start the game
+         if game.boards_submitted[0] && game.boards_submitted[1] {
+             game.game_state = GameState::P1Turn;
+             msg!("Both boards submitted. Game state transitioned to P1Turn.");
+         }
+ 
          Ok(())
      }
  
@@ -270,43 +300,31 @@
  
  /**
   * @description The main PDA for a single game instance, as per the tech spec.
-  * @size
-  * players: 2 * 32 = 64
-  * turn_number: 8
-  * board_states: 2 * 4 * 8 = 64
-  * nonces: 2 * 16 = 32
-  * public_keys: 2 * 32 = 64
-  * game_log: 4 * (32 + 2 + 1) = 4 * 35 = 140
-  * log_idx: 1
-  * game_state: 1 + 1 = 2
-  * game_seed: 8
-  * boards_submitted: 2 * 1 = 2
-  * TOTAL: 2928 bytes + 8 (discriminator)
   */
  #[account]
  pub struct Game {
      pub players: [Pubkey; 2],                    // 64
      pub turn_number: u64,                        // 8
      // [player_index][row_index][ciphertext]
-     pub board_states: [[[u8; 8]; 4]; 2],         // 64
-     pub nonces: [[u8; 16]; 2],                  // 32
-     pub public_keys: [[u8; 32]; 2],             // 64
-     // Max 4 shots for an 8x8 grid.
-     pub game_log: [Shot; 4],                    // 140 (4 * 35 bytes each)
-     pub log_idx: u8,                            // 1
-     pub game_state: GameState,                  // 1
-     pub game_seed: u64,                         // 8
-     pub boards_submitted: [bool; 2],            // 2
+     pub board_states: [[[u8; 32]; 8]; 2],        // 512 (2 * 8 * 32)
+     pub nonces: [[u8; 16]; 2],                   // 32
+     pub public_keys: [[u8; 32]; 2],              // 64
+     // Game log for shots - starting with 16, can be expanded later
+     pub game_log: [Shot; 16],                   // 560 (16 * 35)
+     pub log_idx: u8,                             // 1
+     pub game_state: GameState,                   // 1
+     pub game_seed: u64,                          // 8
+     pub boards_submitted: [bool; 2],             // 2
  }
  
  impl Game {
      // Discriminator (8) is added where the constant is used (space = 8 + SIZE)
      pub const SIZE: usize = 64   // players
          + 8                       // turn_number
-         + 64                      // board_states (2*4*8)
+         + 512                     // board_states (2 * 8 * 32)
          + 32                      // nonces
          + 64                      // public_keys
-         + 140                     // game_log (4 shots * 35 bytes each)
+         + 560                     // game_log (16 shots * (32 + 2 + 1))
          + 1                       // log_idx
          + 1                       // game_state (enum repr u8)
          + 8                       // game_seed
@@ -337,7 +355,8 @@
  pub enum GameState {
      #[default]
      AwaitingPlayer, // Game created, waiting for P2
-     P1Turn,         // Board submission phase OR Player 1's turn to fire
+     BoardSetup,     // Both players joined, waiting for boards
+     P1Turn,         // Player 1's turn to fire
      P2Turn,         // Player 2's turn to fire
      P1Won,          // Player 1 has won
      P2Won,          // Player 2 has won
