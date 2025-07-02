@@ -11,6 +11,192 @@
   ],
   "instructions": [
     {
+      "name": "fire_shot",
+      "discriminator": [
+        66,
+        150,
+        104,
+        42,
+        242,
+        254,
+        17,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game.game_seed",
+                "account": "Game"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_computation_offset",
+          "type": "u64"
+        },
+        {
+          "name": "_x",
+          "type": "u8"
+        },
+        {
+          "name": "_y",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "fire_shot_callback",
+      "discriminator": [
+        144,
+        174,
+        15,
+        132,
+        81,
+        159,
+        129,
+        141
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_output",
+          "type": {
+            "defined": {
+              "name": "ComputationOutputs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "forfeit",
+      "discriminator": [
+        80,
+        154,
+        237,
+        158,
+        244,
+        198,
+        154,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game.game_seed",
+                "account": "Game"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_comp_def_check_shot",
+      "discriminator": [
+        234,
+        155,
+        123,
+        215,
+        94,
+        52,
+        96,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_comp_def_reveal_boards",
+      "discriminator": [
+        192,
+        120,
+        161,
+        192,
+        102,
+        77,
+        29,
+        187
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize_game",
       "docs": [
         "* @description Initializes a new game.\n      * Creates the `Game` PDA and sets the caller as Player 1."
@@ -109,6 +295,196 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "reveal_boards",
+      "discriminator": [
+        129,
+        221,
+        53,
+        171,
+        116,
+        131,
+        107,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "game",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game.game_seed",
+                "account": "Game"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_computation_offset",
+          "type": "u64"
+        },
+        {
+          "name": "_p1_ciphertext",
+          "type": "bytes"
+        },
+        {
+          "name": "_p1_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_p1_nonce",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "_p2_ciphertext",
+          "type": "bytes"
+        },
+        {
+          "name": "_p2_pubkey",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_p2_nonce",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reveal_boards_callback",
+      "discriminator": [
+        18,
+        199,
+        189,
+        97,
+        196,
+        184,
+        67,
+        111
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_output",
+          "type": {
+            "defined": {
+              "name": "ComputationOutputs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "submit_board",
+      "discriminator": [
+        159,
+        144,
+        132,
+        92,
+        198,
+        49,
+        200,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "signer": true
+        },
+        {
+          "name": "game",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  97,
+                  109,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "game.game_seed",
+                "account": "Game"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "_board_rows",
+          "type": "bytes"
+        },
+        {
+          "name": "_public_key",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "_nonce",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -126,11 +502,107 @@
       ]
     }
   ],
+  "events": [
+    {
+      "name": "BoardRevealEvent",
+      "discriminator": [
+        73,
+        35,
+        129,
+        180,
+        128,
+        92,
+        116,
+        165
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidFinalizeTx",
+      "msg": "Invalid finalize transaction"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidAccount",
+      "msg": "Invalid account"
+    }
+  ],
   "types": [
+    {
+      "name": "BoardRevealEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "p1_board",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    8
+                  ]
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "p2_board",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    8
+                  ]
+                },
+                8
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ComputationOutputs",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Bytes",
+            "fields": [
+              "bytes"
+            ]
+          },
+          {
+            "name": "Abort"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Coordinate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "x",
+            "type": "u8"
+          },
+          {
+            "name": "y",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "Game",
       "docs": [
-        "* @description The main PDA for a single game instance, as per the tech spec."
+        "* @description The main PDA for a single game instance, as per the tech spec.\n  * @size\n  * players: 2 * 32 = 64\n  * turn_number: 8\n  * board_states: 2 * 4 * 8 = 64\n  * nonces: 2 * 16 = 32\n  * public_keys: 2 * 32 = 64\n  * game_log: 4 * (32 + 2 + 1) = 4 * 35 = 140\n  * log_idx: 1\n  * game_state: 1 + 1 = 2\n  * game_seed: 8\n  * boards_submitted: 2 * 1 = 2\n  * TOTAL: 2928 bytes + 8 (discriminator)"
       ],
       "type": {
         "kind": "struct",
@@ -149,6 +621,70 @@
             "type": "u64"
           },
           {
+            "name": "board_states",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    {
+                      "array": [
+                        "u8",
+                        8
+                      ]
+                    },
+                    4
+                  ]
+                },
+                2
+              ]
+            }
+          },
+          {
+            "name": "nonces",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    16
+                  ]
+                },
+                2
+              ]
+            }
+          },
+          {
+            "name": "public_keys",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                2
+              ]
+            }
+          },
+          {
+            "name": "game_log",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "Shot"
+                  }
+                },
+                4
+              ]
+            }
+          },
+          {
+            "name": "log_idx",
+            "type": "u8"
+          },
+          {
             "name": "game_state",
             "type": {
               "defined": {
@@ -159,6 +695,15 @@
           {
             "name": "game_seed",
             "type": "u64"
+          },
+          {
+            "name": "boards_submitted",
+            "type": {
+              "array": [
+                "bool",
+                2
+              ]
+            }
           }
         ]
       }
@@ -185,23 +730,48 @@
           }
         ]
       }
-    }
-  ],
-  "errors": [
-    {
-      "code": 6000,
-      "name": "GameAlreadyFull",
-      "msg": "This game is already full."
     },
     {
-      "code": 6001,
-      "name": "InvalidGameState",
-      "msg": "The game is not in the correct state for this action."
+      "name": "HitOrMiss",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Miss"
+          },
+          {
+            "name": "Hit"
+          }
+        ]
+      }
     },
     {
-      "code": 6007,
-      "name": "PlayerCannotJoinOwnGame",
-      "msg": "A player cannot join a game they created."
+      "name": "Shot",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "coord",
+            "type": {
+              "defined": {
+                "name": "Coordinate"
+              }
+            }
+          },
+          {
+            "name": "result",
+            "type": {
+              "defined": {
+                "name": "HitOrMiss"
+              }
+            }
+          }
+        ]
+      }
     }
   ]
 }

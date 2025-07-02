@@ -23,6 +23,7 @@ import GameClient from "@/app/game/[gameId]/_components/game-client";
 import { getProgram } from "@/lib/solana";
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { type ClientGameState } from "@/types";
 
 // Revalidate the page on every request to get the latest game state
 export const revalidate = 0;
@@ -67,12 +68,24 @@ export default async function GamePage({ params }: GamePageProps) {
     // Fetch the game account data
     const game = await program.account.game.fetch(gamePda);
 
+    // Handle both enum object format and numeric format
+    let parsedGameState: ClientGameState['gameState'];
+    if (typeof game.gameState === 'object' && game.gameState !== null) {
+      // Old format: { awaitingPlayer: {} }
+      parsedGameState = Object.keys(game.gameState)[0] as ClientGameState['gameState'];
+    } else {
+      // New format: numeric enum
+      const gameStateMapping = ['awaitingPlayer', 'p1Turn', 'p2Turn', 'p1Won', 'p2Won'];
+      parsedGameState = gameStateMapping[game.gameState as number] as ClientGameState['gameState'];
+    }
+
     // The fetched data needs to be serialized to be passed from Server to Client Component
     const initialGameState = {
-      ...game,
       players: game.players.map(p => p.toBase58()),
       turnNumber: game.turnNumber.toString(),
       gameSeed: game.gameSeed.toString(),
+      gameState: parsedGameState,
+      boardsSubmitted: game.boardsSubmitted || [false, false],
     }
 
     return <GameClient initialGameState={initialGameState} gameId={gameId} />;
