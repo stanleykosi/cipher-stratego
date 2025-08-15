@@ -178,31 +178,6 @@ export type CipherStratego = {
       "args": []
     },
     {
-      "name": "initCompDefRevealBoards",
-      "discriminator": [
-        192,
-        120,
-        161,
-        192,
-        102,
-        77,
-        29,
-        187
-      ],
-      "accounts": [
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "initializeGame",
       "docs": [
         "* @description Initializes a new game.\n      * Creates the `Game` PDA and sets the caller as Player 1."
@@ -303,131 +278,6 @@ export type CipherStratego = {
       "args": []
     },
     {
-      "name": "revealBoards",
-      "discriminator": [
-        129,
-        221,
-        53,
-        171,
-        116,
-        131,
-        107,
-        115
-      ],
-      "accounts": [
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "game",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  103,
-                  97,
-                  109,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "game.game_seed",
-                "account": "game"
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "computationOffset",
-          "type": "u64"
-        },
-        {
-          "name": "p1Ciphertext",
-          "type": "bytes"
-        },
-        {
-          "name": "p1Pubkey",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "p1Nonce",
-          "type": {
-            "array": [
-              "u8",
-              16
-            ]
-          }
-        },
-        {
-          "name": "p2Ciphertext",
-          "type": "bytes"
-        },
-        {
-          "name": "p2Pubkey",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "p2Nonce",
-          "type": {
-            "array": [
-              "u8",
-              16
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "revealBoardsCallback",
-      "discriminator": [
-        18,
-        199,
-        189,
-        97,
-        196,
-        184,
-        67,
-        111
-      ],
-      "accounts": [
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "output",
-          "type": {
-            "defined": {
-              "name": "computationOutputs"
-            }
-          }
-        }
-      ]
-    },
-    {
       "name": "submitBoard",
       "discriminator": [
         159,
@@ -469,8 +319,13 @@ export type CipherStratego = {
       ],
       "args": [
         {
-          "name": "encryptedRows",
-          "type": {"array": [{"array": ["u8", 32]}, 8]}
+          "name": "boardHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "publicKey",
@@ -495,7 +350,33 @@ export type CipherStratego = {
   ],
   "accounts": [
     {
+      "name": "boardData",
+      "discriminator": [
+        27,
+        90,
+        166,
+        125,
+        74,
+        100,
+        121,
+        18
+      ]
+    },
+    {
       "name": "game",
+      "discriminator": [
+        27,
+        90,
+        166,
+        125,
+        74,
+        100,
+        121,
+        18
+      ]
+    },
+    {
+      "name": "gameLog",
       "discriminator": [
         27,
         90,
@@ -508,21 +389,7 @@ export type CipherStratego = {
       ]
     }
   ],
-  "events": [
-    {
-      "name": "boardRevealEvent",
-      "discriminator": [
-        73,
-        35,
-        129,
-        180,
-        128,
-        92,
-        116,
-        165
-      ]
-    }
-  ],
+  "events": [],
   "errors": [
     {
       "code": 6000,
@@ -537,35 +404,52 @@ export type CipherStratego = {
   ],
   "types": [
     {
-      "name": "boardRevealEvent",
+      "name": "boardData",
+      "docs": [
+        "* @description Separate account for board data to avoid stack overflow"
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "p1Board",
+            "name": "boardHashes",
             "type": {
               "array": [
                 {
                   "array": [
                     "u8",
-                    8
+                    32
                   ]
                 },
-                8
+                2
               ]
             }
           },
           {
-            "name": "p2Board",
+            "name": "nonces",
             "type": {
               "array": [
                 {
                   "array": [
                     "u8",
-                    8
+                    16
                   ]
                 },
-                8
+                2
+              ]
+            }
+          },
+          {
+            "name": "publicKeys",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                2
               ]
             }
           }
@@ -608,7 +492,7 @@ export type CipherStratego = {
     {
       "name": "game",
       "docs": [
-        "* @description The main PDA for a single game instance, as per the tech spec.\n  * @size\n  * players: 2 * 32 = 64\n  * turn_number: 8\n  * board_states: 2 * 4 * 8 = 64\n  * nonces: 2 * 16 = 32\n  * public_keys: 2 * 32 = 64\n  * game_log: 4 * (32 + 2 + 1) = 4 * 35 = 140\n  * log_idx: 1\n  * game_state: 1 + 1 = 2\n  * game_seed: 8\n  * boards_submitted: 2 * 1 = 2\n  * TOTAL: 2928 bytes + 8 (discriminator)"
+        "* @description Minimal game state that's compatible with Arcium's stack limitations.\n  * Large data is stored in separate accounts referenced by pubkey."
       ],
       "type": {
         "kind": "struct",
@@ -625,70 +509,6 @@ export type CipherStratego = {
           {
             "name": "turnNumber",
             "type": "u64"
-          },
-          {
-            "name": "boardStates",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    {
-                      "array": [
-                        "u8",
-                        8
-                      ]
-                    },
-                    4
-                  ]
-                },
-                2
-              ]
-            }
-          },
-          {
-            "name": "nonces",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    16
-                  ]
-                },
-                2
-              ]
-            }
-          },
-          {
-            "name": "publicKeys",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "u8",
-                    32
-                  ]
-                },
-                2
-              ]
-            }
-          },
-          {
-            "name": "gameLog",
-            "type": {
-              "array": [
-                {
-                  "defined": {
-                    "name": "shot"
-                  }
-                },
-                4
-              ]
-            }
-          },
-          {
-            "name": "logIdx",
-            "type": "u8"
           },
           {
             "name": "gameState",
@@ -710,6 +530,42 @@ export type CipherStratego = {
                 2
               ]
             }
+          },
+          {
+            "name": "boardDataAccount",
+            "type": "pubkey"
+          },
+          {
+            "name": "gameLogAccount",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "gameLog",
+      "docs": [
+        "* @description Separate account for game log to avoid stack overflow"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shots",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "shot"
+                  }
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "logIdx",
+            "type": "u8"
           }
         ]
       }
@@ -721,6 +577,9 @@ export type CipherStratego = {
         "variants": [
           {
             "name": "awaitingPlayer"
+          },
+          {
+            "name": "boardSetup"
           },
           {
             "name": "p1Turn"

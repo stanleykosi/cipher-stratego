@@ -6,7 +6,7 @@
  *
  * @scope
  * - Defines the `check_shot` confidential instruction for hit/miss detection.
- * - Defines the `reveal_boards` confidential instruction for end-of-game verification.
+ * - Defines the `reveal_board_row` confidential instruction for end-of-game verification.
  * - Specifies the data structures for encrypted inputs and public outputs.
  *
  * @dependencies
@@ -34,7 +34,7 @@
      //================================================================
      // CHECK SHOT CIRCUIT
      //================================================================
- 
+
      /**
       * @description
       * A struct to represent a single row of the game board.
@@ -44,7 +44,7 @@
      pub struct BoardRow {
          pub row: [u8; 8],
      }
- 
+
      /**
       * @description
       * The core confidential instruction for the gameplay loop. It takes an encrypted
@@ -68,68 +68,54 @@
          // the MPC nodes can perform computations on. The actual board row values
          // remain secret.
          let board_row = input_ctxt.to_arcis();
- 
+
          // Cast the public x-coordinate to a usize for array indexing.
          let x = x_coord as usize;
- 
+
          // Perform a confidential lookup into the secret-shared board row.
          // The Arcis compiler ensures this indexing operation does not leak
          // any information about the secret value of `x` or the contents of `board_row.row`.
          // The result, `cell_value`, is also a secret-shared value.
          let cell_value = board_row.row[x];
- 
+
          // Reveal the secret `cell_value` to the public. This is the final step
          // that makes the computed result (hit or miss) visible outside the
          // confidential execution environment.
          cell_value.reveal()
      }
- 
+
      //================================================================
-     // REVEAL BOARDS CIRCUIT
+     // REVEAL BOARD ROW CIRCUIT - AVOIDS LARGE STRUCTS
      //================================================================
- 
+
      /**
       * @description
-      * A struct to represent a complete 8x8 game board.
-      * Used by the `reveal_boards` instruction.
+      * A struct to represent a single row of a game board.
+      * Used to return individual board rows to avoid large structs.
       */
-     pub struct FullBoard {
-         pub board: [[u8; 8]; 8],
+     pub struct BoardRowResult {
+         pub row: [u8; 8],
      }
- 
+
      /**
       * @description
-      * A struct to hold the publicly revealed boards of both players.
-      * This is the return type for the `reveal_boards` instruction.
-      */
-     pub struct RevealedBoards {
-         pub p1_board: [[u8; 8]; 8],
-         pub p2_board: [[u8; 8]; 8],
-     }
- 
-     /**
-      * @description
-      * A confidential instruction for the end of the game. It takes two encrypted
-      * full boards, decrypts them, and reveals them publicly for verification.
+      * A confidential instruction to reveal a single row of a player's board.
+      * This avoids large structs that cause stack overflow.
       *
       * @inputs
-      * - `p1_board_ctxt: Enc<Shared, FullBoard>`: Player 1's encrypted board.
-      * - `p2_board_ctxt: Enc<Shared, FullBoard>`: Player 2's encrypted board.
+      * - `board_row_ctxt: Enc<Shared, BoardRow>`: An encrypted board row.
       *
       * @returns
-      * - `RevealedBoards`: A struct containing both players' decrypted boards.
+      * - `BoardRowResult`: The decrypted board row.
       */
      #[instruction]
-     pub fn reveal_boards(
-         p1_board_ctxt: Enc<Shared, FullBoard>,
-         p2_board_ctxt: Enc<Shared, FullBoard>,
-     ) -> RevealedBoards {
-         let p1_board_secret = p1_board_ctxt.to_arcis();
-         let p2_board_secret = p2_board_ctxt.to_arcis();
- 
-         RevealedBoards {
-             p1_board: p1_board_secret.board.reveal(),
-             p2_board: p2_board_secret.board.reveal(),
+     pub fn reveal_board_row(
+         board_row_ctxt: Enc<Shared, BoardRow>,
+     ) -> BoardRowResult {
+         let board_row_secret = board_row_ctxt.to_arcis();
+         
+         BoardRowResult {
+             row: board_row_secret.row.reveal(),
          }
      }
  }

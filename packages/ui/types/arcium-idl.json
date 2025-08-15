@@ -17,19 +17,15 @@
       }
     },
     {
-      "name": "reveal_boards",
+      "name": "reveal_board_row",
       "inputs": [
         {
-          "name": "p1_board_ctxt",
-          "type": "encrypted_full_board"
-        },
-        {
-          "name": "p2_board_ctxt",
-          "type": "encrypted_full_board"
+          "name": "board_row_ctxt",
+          "type": "encrypted_board_row"
         }
       ],
       "output": {
-        "type": "revealed_boards"
+        "type": "board_row_result"
       }
     }
   ],
@@ -44,26 +40,13 @@
       ]
     },
     {
-      "name": "encrypted_full_board",
+      "name": "board_row_result",
       "fields": [
         {
-          "name": "board",
-          "type": "array_array_u8_8_8"
-        }
-      ]
-    },
-    {
-      "name": "revealed_boards",
-      "fields": [
-        {
-          "name": "p1_board",
-          "type": "array_array_u8_8_8"
-        },
-        {
-          "name": "p2_board",
-          "type": "array_array_u8_8_8"
+          "name": "row",
+          "type": "array_u8_8"
         }
       ]
     }
   ]
-} 
+}

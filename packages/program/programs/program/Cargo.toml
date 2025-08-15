@@ -22,6 +22,7 @@ anchor-debug = []
 [dependencies]
 anchor-lang = "0.31.1"
 
-arcium-client = { default-features = false, version = "0.1.47" }
-arcium-macros = { version = "0.1.47" }
-arcium-anchor = { version = "0.1.47" }
+# Arcium v2 dependencies
+arcium-client = { default-features = false, version = "0.2.0" }
+arcium-macros = { version = "0.2.0" }
+arcium-anchor = { version = "0.2.0" }

@@ -22,9 +22,12 @@
  *     specification, which includes fields for encrypted board states, nonces, public keys, and
  *     a game log. This prepares the program for subsequent gameplay logic.
  */
- use anchor_lang::prelude::*;
- use arcium_anchor::ComputationOutputs;
- use arcium_macros::arcium_program;
+
+use anchor_lang::prelude::*;
+use arcium_anchor::prelude::*;
+
+// Arcium v2 specific types (will be implemented as needed)
+// use arcium_anchor::types::{CircuitSource, CallbackAccount, MXEAccount, FeePool};
  
  // Program ID for the deployed Cipher Stratego program on devnet
  declare_id!("G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm");
@@ -37,7 +40,7 @@
  
  /**
   * @description
-  * The main module for the Cipher Stratego program, decorated with `#[arcium_program]`.
+  * The main module for the Cipher Stratego program, decorated with `#[program]`.
   * This macro replaces Anchor's `#[program]` and is necessary for integrating
   * with the Arcium network. All game logic instructions will be defined within this module.
   */
@@ -53,152 +56,154 @@
       * @description Initializes a new game.
       * Creates the `Game` PDA and sets the caller as Player 1.
       */
-     pub fn initialize_game(ctx: Context<InitializeGame>, game_seed: u64) -> Result<()> {
-         let game = &mut ctx.accounts.game;
-         msg!("Initializing game with seed: {}", game_seed);
- 
-         // Set initial game properties
-         game.players[0] = ctx.accounts.payer.key();
-         game.players[1] = Pubkey::default(); // Player 2 is not yet present
-         game.game_state = GameState::AwaitingPlayer;
-         game.game_seed = game_seed;
-         
-         // The rest of the fields are zero-initialized by Anchor's `init` constraint,
-         // which serves as a valid default state.
- 
-         msg!("Game PDA initialized at address: {}", game.key());
-         msg!("Player 1 set to: {}", ctx.accounts.payer.key());
-         Ok(())
-     }
+         pub fn initialize_game(ctx: Context<InitializeGame>, game_seed: u64) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        msg!("Initializing game with seed: {}", game_seed);
+
+        // Set initial game properties
+        game.players[0] = ctx.accounts.payer.key();
+        game.players[1] = Pubkey::default(); // Player 2 is not yet present
+        game.game_state = GameState::AwaitingPlayer;
+        game.game_seed = game_seed;
+        
+        // The rest of the fields are zero-initialized by Anchor's `init` constraint,
+        // which serves as a valid default state.
+
+        msg!("Game PDA initialized at address: {}", game.key());
+        msg!("Player 1 set to: {}", ctx.accounts.payer.key());
+        Ok(())
+    }
  
      /**
       * @description Allows a second player to join an existing game.
       *
       * @validation
       * - Fails if the game is not in the `AwaitingPlayer` state.
-      * - Fails if the game already has a second player.
       * - Fails if the caller is the same as Player 1.
+      * - Transitions the game state to `BoardSetup` after P2 joins.
       */
      pub fn join_game(ctx: Context<JoinGame>) -> Result<()> {
          let game = &mut ctx.accounts.game;
-         let player = &ctx.accounts.payer;
- 
+         let player = &ctx.accounts.player;
+
          msg!("Player {} attempting to join game {}", player.key(), game.key());
- 
+
          // Validate game state
-         require!(game.game_state == GameState::AwaitingPlayer, GameError::InvalidGameState);
- 
-         // Validate that P2 slot is empty
-         require_keys_eq!(game.players[1], Pubkey::default(), GameError::GameAlreadyFull);
- 
-         // Validate that P2 is not the same as P1
-         require_keys_neq!(player.key(), game.players[0], GameError::PlayerCannotJoinOwnGame);
- 
-         // Update game state
+         require!(
+             game.game_state == GameState::AwaitingPlayer,
+             GameError::InvalidGameState
+         );
+
+         // Ensure the joining player is not the same as Player 1
+         require!(
+             game.players[0] != player.key(),
+             GameError::PlayerCannotJoinOwnGame
+         );
+
+         // Set Player 2
          game.players[1] = player.key();
          game.game_state = GameState::BoardSetup;
- 
-         msg!("Player {} successfully joined as Player 2.", player.key());
-         msg!("Game state transitioned to {:?}", game.game_state);
- 
+
+         msg!("Player 2 ({}) joined the game. Transitioning to BoardSetup state.", player.key());
          Ok(())
      }
  
-     /**
-      * @description Submits a player's encrypted board layout.
-      *
-      * @validation
-      * - Fails if the game is not in the `BoardSetup` state.
-      * - Fails if the player has already submitted their board.
-      * - Transitions the game state to `P1Turn` if both boards are submitted.
-      */
-     pub fn submit_board(
-         ctx: Context<SubmitBoard>,
-         encrypted_rows: [[u8; 32]; 8],
-         public_key: [u8; 32],
-         nonce: [u8; 16],
-     ) -> Result<()> {
-         let game = &mut ctx.accounts.game;
-         let player = &ctx.accounts.player;
+         /**
+     * @description Submits a player's encrypted board layout.
+     *
+     * @validation
+     * - Fails if the game is not in the `BoardSetup` state.
+     * - Fails if the player has already submitted their board.
+     * - Transitions the game state to `P1Turn` if both boards are submitted.
+     */
+    pub fn submit_board(
+        ctx: Context<SubmitBoard>,
+        encrypted_rows: [[u8; 32]; 8],
+        public_key: [u8; 32],
+        nonce: [u8; 16],
+    ) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        let player = &ctx.accounts.player;
+
+        msg!("Player {} submitting board for game {}", player.key(), game.key());
+
+        // Validate that the game is in the correct state for board submission.
+        require!(game.game_state == GameState::BoardSetup, GameError::InvalidGameState);
+
+        // Determine if the signer is Player 1 or Player 2.
+        let player_index = if player.key() == game.players[0] {
+            0
+        } else if player.key() == game.players[1] {
+            1
+        } else {
+            // This case should ideally not be hit due to other constraints, but is good for security.
+            return Err(GameError::PlayerNotInGame.into());
+        };
+
+        // Validate that this player has not already submitted their board.
+        require!(!game.boards_submitted[player_index], GameError::BoardAlreadySubmitted);
+
+        // Store the encrypted board data, ephemeral public key, and nonce in the game account.
+        game.board_states[player_index] = encrypted_rows;
+        game.public_keys[player_index] = public_key;
+        game.nonces[player_index] = nonce;
+        game.boards_submitted[player_index] = true;
+
+        msg!("Board for player {} successfully submitted.", player_index + 1);
+
+        // If both players have now submitted their boards, the game can begin.
+        if game.boards_submitted[0] && game.boards_submitted[1] {
+            game.game_state = GameState::P1Turn;
+            msg!("Both boards submitted. Game state transitioned to P1Turn.");
+        }
+
+        Ok(())
+    }
  
-         msg!("Player {} submitting board for game {}", player.key(), game.key());
+             /**
+     * @description Placeholder for firing a shot at the opponent's board.
+     * Now uses embedded game log in the Game account.
+     */
+    pub fn fire_shot(
+        ctx: Context<FireShot>,
+        _computation_offset: u64,
+        target_row: u8,
+        target_col: u8,
+    ) -> Result<()> {
+        let game = &mut ctx.accounts.game;
+        let player = &ctx.accounts.payer;
+
+        msg!("Player {} firing shot at ({}, {})", player.key(), target_row, target_col);
+
+        // Validate game state and player turn logic here
+        require!(
+            game.game_state == GameState::P1Turn || game.game_state == GameState::P2Turn,
+            GameError::InvalidGameState
+        );
+
+        // Create shot record in embedded game log
+        let shot = Shot {
+            player: player.key(),
+            coord: Coordinate { x: target_col, y: target_row },
+            result: HitOrMiss::Miss, // Placeholder
+        };
+
+        // Add to game log if there's space
+        let current_log_idx = game.log_idx as usize;
+        if current_log_idx < 64 {
+            game.game_log[current_log_idx] = shot;
+            game.log_idx += 1;
+        }
+
+        game.turn_number += 1;
+        msg!("Shot recorded in game log. Turn number: {}", game.turn_number);
+        
+        Ok(())
+    }
  
-         // Validate game state
-         require!(game.game_state == GameState::BoardSetup, GameError::InvalidGameState);
- 
-         // Determine player index
-         let player_index = if player.key() == game.players[0] { 0 } else { 1 };
- 
-         // Validate that the board has not been submitted yet
-         require!(!game.boards_submitted[player_index], GameError::BoardAlreadySubmitted);
- 
-         // Store the encrypted data
-         game.board_states[player_index] = encrypted_rows;
-         game.public_keys[player_index] = public_key;
-         game.nonces[player_index] = nonce;
-         game.boards_submitted[player_index] = true;
- 
-         msg!("Board for player {} successfully submitted.", player_index + 1);
- 
-         // If both players have submitted their boards, start the game
-         if game.boards_submitted[0] && game.boards_submitted[1] {
-             game.game_state = GameState::P1Turn;
-             msg!("Both boards submitted. Game state transitioned to P1Turn.");
-         }
- 
-         Ok(())
-     }
- 
-     pub fn fire_shot(_ctx: Context<FireShot>, _computation_offset: u64, _x: u8, _y: u8) -> Result<()> {
-         // TODO: Implement logic in a future step.
-         Ok(())
-     }
- 
-     pub fn fire_shot_callback(
-         _ctx: Context<FireShotCallback>,
-         _output: ComputationOutputs,
-     ) -> Result<()> {
-         // TODO: Implement logic in a future step.
-         Ok(())
-     }
+     
  
      pub fn forfeit(_ctx: Context<ForfeitGame>) -> Result<()> {
-         // TODO: Implement logic in a future step.
-         Ok(())
-     }
- 
-     // --- Reveal Boards Flow ---
- 
-     pub fn reveal_boards(
-         _ctx: Context<RevealBoards>,
-         _computation_offset: u64,
-         _p1_ciphertext: Vec<u8>,
-         _p1_pubkey: [u8; 32],
-         _p1_nonce: [u8; 16],
-         _p2_ciphertext: Vec<u8>,
-         _p2_pubkey: [u8; 32],
-         _p2_nonce: [u8; 16],
-     ) -> Result<()> {
-         // TODO: Implement logic in a future step.
-         Ok(())
-     }
- 
-     pub fn reveal_boards_callback(
-         _ctx: Context<RevealBoardsCallback>,
-         _output: ComputationOutputs,
-     ) -> Result<()> {
-         // TODO: Implement logic in a future step.
-         Ok(())
-     }
- 
-     // --- Arcium Comp Def Initializers ---
- 
-     pub fn init_comp_def_check_shot(_ctx: Context<InitCheckShotCompDef>) -> Result<()> {
-         // TODO: Implement logic in a future step.
-         Ok(())
-     }
- 
-     pub fn init_comp_def_reveal_boards(_ctx: Context<InitRevealBoardsCompDef>) -> Result<()> {
          // TODO: Implement logic in a future step.
          Ok(())
      }
@@ -209,45 +214,50 @@
  // ========================================
  
  #[derive(Accounts)]
- #[instruction(game_seed: u64)]
- pub struct InitializeGame<'info> {
-     #[account(mut)]
-     pub payer: Signer<'info>,
-     #[account(
-         init,
-         payer = payer,
-         space = 8 + Game::SIZE, // 8 bytes for the account discriminator
-         seeds = [b"game", game_seed.to_le_bytes().as_ref()],
-         bump
-     )]
-     pub game: Account<'info, Game>,
-     pub system_program: Program<'info, System>,
- }
+#[instruction(game_seed: u64)]
+pub struct InitializeGame<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + Game::SIZE, // 8 bytes for the account discriminator
+        seeds = [b"game", game_seed.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub game: Account<'info, Game>,
+    pub system_program: Program<'info, System>,
+}
  
  #[derive(Accounts)]
  pub struct JoinGame<'info> {
-     #[account(mut)]
-     pub payer: Signer<'info>,
-     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
-     pub game: Account<'info, Game>,
- }
- 
- #[derive(Accounts)]
- pub struct SubmitBoard<'info> {
      pub player: Signer<'info>,
      #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
      pub game: Account<'info, Game>,
  }
  
  #[derive(Accounts)]
- #[instruction(computation_offset: u64)]
- pub struct FireShot<'info> {
-     #[account(mut)]
-     pub payer: Signer<'info>,
-     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
-     pub game: Account<'info, Game>,
-     pub system_program: Program<'info, System>,
- }
+pub struct SubmitBoard<'info> {
+    pub player: Signer<'info>,
+    #[account(
+        mut, 
+        seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], 
+        bump,
+        // Ensure the signer is one of the players in the game account.
+        constraint = player.key() == game.players[0] || player.key() == game.players[1]
+    )]
+    pub game: Account<'info, Game>,
+}
+ 
+ #[derive(Accounts)]
+#[instruction(computation_offset: u64)]
+pub struct FireShot<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
+    pub game: Account<'info, Game>,
+    pub system_program: Program<'info, System>,
+}
  
  #[derive(Accounts)]
  pub struct FireShotCallback<'info> {
@@ -265,30 +275,7 @@
  }
  
  #[derive(Accounts)]
- #[instruction(computation_offset: u64)]
- pub struct RevealBoards<'info> {
-     #[account(mut)]
-     pub payer: Signer<'info>,
-     #[account(seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
-     pub game: Account<'info, Game>,
-     pub system_program: Program<'info, System>,
- }
- 
- #[derive(Accounts)]
- pub struct RevealBoardsCallback<'info> {
-     #[account(mut)]
-     pub payer: Signer<'info>,
- }
- 
- #[derive(Accounts)]
  pub struct InitCheckShotCompDef<'info> {
-     #[account(mut)]
-     pub payer: Signer<'info>,
-     pub system_program: Program<'info, System>,
- }
- 
- #[derive(Accounts)]
- pub struct InitRevealBoardsCompDef<'info> {
      #[account(mut)]
      pub payer: Signer<'info>,
      pub system_program: Program<'info, System>,
@@ -299,37 +286,38 @@
  // ========================================
  
  /**
-  * @description The main PDA for a single game instance, as per the tech spec.
-  */
- #[account]
- pub struct Game {
-     pub players: [Pubkey; 2],                    // 64
-     pub turn_number: u64,                        // 8
-     // [player_index][row_index][ciphertext]
-     pub board_states: [[[u8; 32]; 8]; 2],        // 512 (2 * 8 * 32)
-     pub nonces: [[u8; 16]; 2],                   // 32
-     pub public_keys: [[u8; 32]; 2],              // 64
-     // Game log for shots - starting with 16, can be expanded later
-     pub game_log: [Shot; 16],                   // 560 (16 * 35)
-     pub log_idx: u8,                             // 1
-     pub game_state: GameState,                   // 1
-     pub game_seed: u64,                          // 8
-     pub boards_submitted: [bool; 2],             // 2
- }
+ * @description The main PDA for a single game instance, as per the tech spec.
+ */
+#[account]
+pub struct Game {
+    pub players: [Pubkey; 2],                    // 64
+    pub turn_number: u64,                        // 8
+    // [player_index][row_index][ciphertext]
+    pub board_states: [[[u8; 32]; 8]; 2],        // 512 (2 * 8 * 32)
+    pub nonces: [[u8; 16]; 2],                   // 32
+    pub public_keys: [[u8; 32]; 2],              // 64
+    // Public log of all shots fired. Max 64 shots for an 8x8 grid.
+    pub game_log: [Shot; 64],                   // 4480 (64 * (32 + 2 + 1 + padding))
+    pub log_idx: u8,                             // 1
+    pub game_state: GameState,                   // 1
+    pub game_seed: u64,                          // 8
+    pub boards_submitted: [bool; 2],             // 2
+}
+
+impl Game {
+    pub const SIZE: usize = 64   // players
+        + 8                       // turn_number
+        + 512                     // board_states (2 * 8 * 32)
+        + 32                      // nonces
+        + 64                      // public_keys
+        + (70 * 64)               // game_log (Shot is large due to alignment, ~70 bytes * 64)
+        + 1                       // log_idx
+        + 1                       // game_state (enum repr u8)
+        + 8                       // game_seed
+        + 2;                      // boards_submitted
+}
  
- impl Game {
-     // Discriminator (8) is added where the constant is used (space = 8 + SIZE)
-     pub const SIZE: usize = 64   // players
-         + 8                       // turn_number
-         + 512                     // board_states (2 * 8 * 32)
-         + 32                      // nonces
-         + 64                      // public_keys
-         + 560                     // game_log (16 shots * (32 + 2 + 1))
-         + 1                       // log_idx
-         + 1                       // game_state (enum repr u8)
-         + 8                       // game_seed
-         + 2;                      // boards_submitted
- }
+ // BoardData and GameLog are now embedded in the Game account
  
  #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
  pub struct Coordinate {
@@ -337,7 +325,7 @@
      pub y: u8,
  }
  
- #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
+ #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug, InitSpace)]
  pub struct Shot {
      pub player: Pubkey,
      pub coord: Coordinate,
@@ -362,32 +350,28 @@
      P2Won,          // Player 2 has won
  }
  
- #[event]
- pub struct BoardRevealEvent {
-     pub p1_board: [[u8; 8]; 8],
-     pub p2_board: [[u8; 8]; 8],
- }
- 
- // ========================================
- // Custom Error Codes
- // ========================================
- 
  #[error_code]
- pub enum GameError {
-     #[msg("This game is already full.")]
-     GameAlreadyFull,
-     #[msg("The game is not in the correct state for this action.")]
-     InvalidGameState,
-     #[msg("This board has already been submitted.")]
-     BoardAlreadySubmitted,
-     #[msg("It is not your turn.")]
-     NotYourTurn,
-     #[msg("This square has already been targeted.")]
-     SquareAlreadyTargeted,
-     #[msg("The game is not over yet.")]
-     GameNotOver,
-     #[msg("Both players must submit their boards before play can begin.")]
-     BoardsNotSubmitted,
-     #[msg("A player cannot join a game they created.")]
-     PlayerCannotJoinOwnGame,
- }
+pub enum GameError {
+    #[msg("This game is already full.")]
+    GameAlreadyFull,
+    #[msg("The game is not in the correct state for this action.")]
+    InvalidGameState,
+    #[msg("This board has already been submitted.")]
+    BoardAlreadySubmitted,
+    #[msg("It is not your turn.")]
+    NotYourTurn,
+    #[msg("This square has already been targeted.")]
+    SquareAlreadyTargeted,
+    #[msg("The game is not over yet.")]
+    GameNotOver,
+    #[msg("Both players must submit their boards before play can begin.")]
+    BoardsNotSubmitted,
+    #[msg("A player cannot join a game they created.")]
+    PlayerCannotJoinOwnGame,
+    #[msg("The player is not a participant in this game.")]
+    PlayerNotInGame,
+    #[msg("The signer is not a valid player for this game.")]
+    InvalidPlayer,
+    #[msg("The cluster is not set")]
+    ClusterNotSet,
+}
