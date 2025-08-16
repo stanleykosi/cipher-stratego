@@ -188,9 +188,9 @@ use arcium_anchor::prelude::*;
             result: HitOrMiss::Miss, // Placeholder
         };
 
-        // Add to game log if there's space
+        // Add to game log if there's space (reduced from 64 to 16)
         let current_log_idx = game.log_idx as usize;
-        if current_log_idx < 64 {
+        if current_log_idx < 16 {
             game.game_log[current_log_idx] = shot;
             game.log_idx += 1;
         }
@@ -233,7 +233,7 @@ pub struct InitializeGame<'info> {
  pub struct JoinGame<'info> {
      pub player: Signer<'info>,
      #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
-     pub game: Account<'info, Game>,
+     pub game: Box<Account<'info, Game>>,
  }
  
  #[derive(Accounts)]
@@ -246,7 +246,7 @@ pub struct SubmitBoard<'info> {
         // Ensure the signer is one of the players in the game account.
         constraint = player.key() == game.players[0] || player.key() == game.players[1]
     )]
-    pub game: Account<'info, Game>,
+    pub game: Box<Account<'info, Game>>,
 }
  
  #[derive(Accounts)]
@@ -255,7 +255,7 @@ pub struct FireShot<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
-    pub game: Account<'info, Game>,
+    pub game: Box<Account<'info, Game>>,
     pub system_program: Program<'info, System>,
 }
  
@@ -264,14 +264,14 @@ pub struct FireShot<'info> {
      #[account(mut)]
      pub payer: Signer<'info>,
      #[account(mut)]
-     pub game: Account<'info, Game>,
+     pub game: Box<Account<'info, Game>>,
  }
  
  #[derive(Accounts)]
  pub struct ForfeitGame<'info> {
      pub player: Signer<'info>,
      #[account(mut, seeds = [b"game", game.game_seed.to_le_bytes().as_ref()], bump)]
-     pub game: Account<'info, Game>,
+     pub game: Box<Account<'info, Game>>,
  }
  
  #[derive(Accounts)]
@@ -286,22 +286,23 @@ pub struct FireShot<'info> {
  // ========================================
  
  /**
- * @description The main PDA for a single game instance, as per the tech spec.
+ * @description Optimized game state that fits within Arcium's stack limits.
+ * Uses embedded arrays with reduced game log size.
  */
 #[account]
 pub struct Game {
-    pub players: [Pubkey; 2],                    // 64
-    pub turn_number: u64,                        // 8
+    pub players: [Pubkey; 2],                    // 64 bytes
+    pub turn_number: u64,                        // 8 bytes
     // [player_index][row_index][ciphertext]
-    pub board_states: [[[u8; 32]; 8]; 2],        // 512 (2 * 8 * 32)
-    pub nonces: [[u8; 16]; 2],                   // 32
-    pub public_keys: [[u8; 32]; 2],              // 64
-    // Public log of all shots fired. Max 64 shots for an 8x8 grid.
-    pub game_log: [Shot; 64],                   // 4480 (64 * (32 + 2 + 1 + padding))
-    pub log_idx: u8,                             // 1
-    pub game_state: GameState,                   // 1
-    pub game_seed: u64,                          // 8
-    pub boards_submitted: [bool; 2],             // 2
+    pub board_states: [[[u8; 32]; 8]; 2],        // 512 bytes (2 * 8 * 32)
+    pub nonces: [[u8; 16]; 2],                   // 32 bytes
+    pub public_keys: [[u8; 32]; 2],              // 64 bytes
+    // Reduced game log: 16 shots instead of 64
+    pub game_log: [Shot; 16],                    // 560 bytes (16 * 35 bytes per Shot)
+    pub log_idx: u8,                             // 1 byte
+    pub game_state: GameState,                   // 1 byte
+    pub game_seed: u64,                          // 8 bytes
+    pub boards_submitted: [bool; 2],             // 2 bytes
 }
 
 impl Game {
@@ -310,11 +311,12 @@ impl Game {
         + 512                     // board_states (2 * 8 * 32)
         + 32                      // nonces
         + 64                      // public_keys
-        + (70 * 64)               // game_log (Shot is large due to alignment, ~70 bytes * 64)
+        + 560                     // game_log (16 * 35 bytes per Shot)
         + 1                       // log_idx
         + 1                       // game_state (enum repr u8)
         + 8                       // game_seed
         + 2;                      // boards_submitted
+        // Total: 1252 bytes (well under 4096 limit)
 }
  
  // BoardData and GameLog are now embedded in the Game account
@@ -326,11 +328,11 @@ impl Game {
  }
  
  #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug, InitSpace)]
- pub struct Shot {
-     pub player: Pubkey,
-     pub coord: Coordinate,
-     pub result: HitOrMiss,
- }
+pub struct Shot {
+    pub player: Pubkey,        // 32 bytes
+    pub coord: Coordinate,     // 2 bytes (u8 + u8)
+    pub result: HitOrMiss,     // 1 byte
+}
  
  #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Default, Debug, InitSpace)]
  pub enum HitOrMiss {

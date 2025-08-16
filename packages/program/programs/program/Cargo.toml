@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "cipher_stratego"
 
 [features]
-default = []
+default = ["no-idl", "no-log-ix-name"]
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
@@ -18,11 +18,14 @@ idl-build = ["anchor-lang/idl-build"]
 custom-heap = []
 custom-panic = []
 anchor-debug = []
+## Arcium macros are part of the default build of the program
 
 [dependencies]
 anchor-lang = "0.31.1"
 
 # Arcium v2 dependencies
-arcium-client = { default-features = false, version = "0.2.0" }
-arcium-macros = { version = "0.2.0" }
-arcium-anchor = { version = "0.2.0" }
+arcium-macros = { version = "0.2" }
+arcium-anchor = { version = "0.2", default-features = false }
+
+[dev-dependencies]
+arcium-client = { version = "0.2" }

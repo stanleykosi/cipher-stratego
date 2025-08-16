@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "packages/program/programs/program",
+    "packages/program/encrypted-ixs"
+]
+resolver = "2"

@@ -15,7 +15,7 @@ cipher_stratego = "G5gFnuGRrLE4eXcZMvY5Fppm9Mis34AtXCo7SsvCdtZm"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
